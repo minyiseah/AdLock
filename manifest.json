@@ -1,24 +1,46 @@
 {
-    "manifest_version": 3,
-    "name": "The Annoyance: Productivity Enforcer",
-    "version": "1.0",
-    "description": "Discourages browsing distracting sites by injecting 90s-style popups and fake ads.",
-    "permissions": [
-      "storage",
-      "scripting"
-    ],
-    "host_permissions": [
-      "<all_urls>"
-    ],
-    "action": {
-      "default_popup": "popup.html"
-    },
-    "content_scripts": [
-      {
-        "matches": ["<all_urls>"],
-        "js": ["content.js"],
-        "css": ["styles.css"]
-      }
-    ]
-  }
+  "manifest_version": 3,
+  "name": "Ad-On",
+  "version": "1.0",
+  "description": "Discourages browsing distracting sites by injecting 90s-style popups and fake ads.",
+  "permissions": [
+    "storage",
+    "scripting",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "images/logo-16.png",
+    "32": "images/logo-32.png",
+    "48": "images/logo-48.png",
+    "128": "images/logo-128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/logo-16.png",
+      "32": "images/logo-32.png",
+      "48": "images/logo-48.png",
+      "128": "images/logo-128.png"
+    }
+  },
   
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
+    }
+  ]
+}
