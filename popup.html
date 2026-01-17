@@ -229,6 +229,151 @@
       z-index: 1;
       font-size: 14px;
     }
+
+    /* Captcha modal */
+    .captcha-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .captcha-modal {
+      width: 90%;
+      max-width: 320px;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .captcha-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .captcha-title {
+      font-weight: 600;
+      color: #2e7d32;
+    }
+
+    .captcha-progress {
+      font-size: 11px;
+      color: #777;
+    }
+
+    .captcha-body {
+      margin: 8px 0 10px;
+    }
+
+    .captcha-error {
+      font-size: 11px;
+      color: #d32f2f;
+      min-height: 14px;
+      margin-top: 6px;
+    }
+
+    .captcha-footer {
+      display: flex;
+      gap: 6px;
+    }
+
+    .captcha-footer button {
+      flex: 1;
+    }
+
+    .captcha-instructions {
+      font-size: 12px;
+      margin-bottom: 8px;
+      color: #444;
+    }
+
+    .captcha-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .captcha-tile {
+      height: 52px;
+      border: 2px solid #eee;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .captcha-tile.selected {
+      border-color: #4caf50;
+      box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+    }
+
+    .captcha-shape-circle {
+      border-radius: 50%;
+    }
+
+    .captcha-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .captcha-option {
+      border: 1px solid #ddd;
+      background: #f9f9f9;
+      border-radius: 6px;
+      padding: 8px;
+      cursor: pointer;
+    }
+
+    .captcha-option.selected {
+      border-color: #4caf50;
+      background: #e8f5e9;
+    }
+
+    .captcha-triangle {
+      width: 60px;
+      height: 60px;
+      background: #4caf50;
+      clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+      margin: 0 auto;
+    }
+
+    .captcha-triangle.small {
+      width: 40px;
+      height: 40px;
+    }
+
+    .captcha-text-image {
+      background: #f1f1f1;
+      padding: 8px 6px;
+      text-align: center;
+      letter-spacing: 2px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      border: 1px dashed #bbb;
+    }
+
+    .captcha-text-image span {
+      display: inline-block;
+      margin: 0 1px;
+    }
+
+    .captcha-slider-value {
+      font-size: 12px;
+      color: #555;
+      margin-top: 6px;
+      text-align: center;
+    }
   </style>
 </head>
 
@@ -302,6 +447,21 @@
     <div id="sessionDetails" style="margin-top: 10px; display: none; border-top: 1px solid #eee; padding-top: 10px;">
       <div id="selectedDateLabel" style="font-size: 12px; font-weight: bold; color: #2e7d32; margin-bottom: 5px;"></div>
       <ul id="sessionList" style="max-height: 100px; overflow-y: auto; font-size: 11px;"></ul>
+    </div>
+  </div>
+
+  <div id="captchaOverlay" class="captcha-overlay">
+    <div class="captcha-modal">
+      <div class="captcha-header">
+        <div id="captchaTitle" class="captcha-title">Captcha</div>
+        <div id="captchaProgress" class="captcha-progress">Captcha 1 of 5</div>
+      </div>
+      <div id="captchaBody" class="captcha-body"></div>
+      <div id="captchaError" class="captcha-error"></div>
+      <div class="captcha-footer">
+        <button id="captchaCancel" class="secondary">Keep Focus</button>
+        <button id="captchaVerify">Verify</button>
+      </div>
     </div>
   </div>
   <script src="popup.js"></script>

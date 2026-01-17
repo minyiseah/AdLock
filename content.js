@@ -231,22 +231,23 @@ function slowScroll(intensity) {
 
     const rand = Math.random();
 
-    // 1. Randomly scroll upwards/reverse (Chaos)
-    if (rand < (intensity * 0.02)) {
-      window.scrollBy(0, -e.deltaY * 1); // Reverse direction less hard
+    // 1. Randomly scroll upwards/reverse (Chaos) - More frequent and stronger
+    if (rand < (intensity * 0.03)) {
+      window.scrollBy(0, -e.deltaY * 1.2); // Increased reverse multiplier
       return;
     }
 
-    // 2. Buffering/Lag (Stutter)
-    if (rand < (intensity * 0.05)) {
+    // 2. Buffering/Lag (Stutter) - More frequent and longer lag
+    if (rand < (intensity * 0.08)) {
       setTimeout(() => {
         window.scrollBy(0, e.deltaY * 0.8);
-      }, getRandomInt(100, 300)); // Reduced lag
+      }, getRandomInt(200, 500)); // Increased lag time
       return;
     }
 
-    // 3. Very Slow (Sludge mode)
-    window.scrollBy(0, e.deltaY * 0.5);
+    // 3. Very Slow (Sludge mode) - More variable speed
+    const scrollMultiplier = 0.2 + Math.random() * 0.4; // Random multiplier between 0.2 and 0.6
+    window.scrollBy(0, e.deltaY * scrollMultiplier);
   };
   window.addEventListener('wheel', scrollHandler, { passive: false });
 }
@@ -281,20 +282,20 @@ function playAnnoyingSound() {
     const gainNode = audioCtx.createGain();
 
     oscillator.type = Math.random() > 0.5 ? 'sawtooth' : 'square';
-    const freq = getRandomInt(800, 1500); // High pitch
+    const freq = getRandomInt(900, 2200); // Higher pitch
     oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
 
-    // Glitch effect
-    oscillator.frequency.exponentialRampToValueAtTime(freq / 2, audioCtx.currentTime + 0.1);
+    // Longer glitch effect
+    oscillator.frequency.exponentialRampToValueAtTime(freq / 2, audioCtx.currentTime + 0.3);
 
-    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.002, audioCtx.currentTime + 0.6);
 
     oscillator.connect(gainNode);
     gainNode.connect(audioCtx.destination);
 
     oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.15);
+    oscillator.stop(audioCtx.currentTime + 0.6);
   } catch (e) { /* AudioContext might be blocked */ }
 }
 
@@ -368,7 +369,7 @@ function startChaos(intensity, sessionEnd) {
   if (intensity >= 4) {
     const audioLoop = () => {
       if (document.hidden) { chaosTimeouts.push(setTimeout(audioLoop, 1000)); return; }
-      const delay = getRandomInt(5000, 15000); // Random intervals
+      const delay = getRandomInt(1500, 5000); // More frequent intervals
       chaosTimeouts.push(setTimeout(() => {
         if (!document.hidden) playAnnoyingSound();
         audioLoop();
