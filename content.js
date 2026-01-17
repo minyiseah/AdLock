@@ -19,9 +19,9 @@ let AD_HEADLINES = [
 ];
 
 const SAFE_SITES = [
-  "https://www.google.com",
   "https://www.linkedin.com",
-  "https://indeed.com"
+  "https://indeed.com",
+  "https://leetcode.com/"
 ];
 
 const MAX_ADS = 5;
@@ -400,13 +400,13 @@ function startChaos(intensity, sessionEnd) {
   // Loop for Ads (More frequent, every 10-20 seconds)
   const adLoop = () => {
     if (document.hidden) { chaosTimeouts.push(setTimeout(adLoop, 1000)); return; }
-    const delay = getRandomInt(40000 / intensity, 80000 / intensity);
+    const delay = getRandomInt(20000 / intensity, 50000 / intensity);
     chaosTimeouts.push(setTimeout(() => {
       if (!document.hidden) {
         const rand = Math.random();
-        if (rand < 0.6) {
+        if (rand < 0.5) {
           createFakeAd();
-        } else if (rand < 0.8) {
+        } else if (rand < 0.9) {
           createBottomAd();
         } else {
           createFloatingAd();

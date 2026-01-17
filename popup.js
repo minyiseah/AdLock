@@ -26,6 +26,7 @@ const currentMonthLabel = document.getElementById('currentMonthLabel');
 const sessionDetails = document.getElementById('sessionDetails');
 const selectedDateLabel = document.getElementById('selectedDateLabel');
 const sessionListEl = document.getElementById('sessionList');
+const blacklistMessage = document.getElementById('blacklistMessage');
 
 const focusToggle = document.getElementById('focusToggle');
 const toggleThumb = document.getElementById('toggleThumb');
@@ -208,6 +209,8 @@ function addSite() {
   const site = newSiteInput.value.trim();
   if (!site) return;
 
+  if (blacklistMessage) blacklistMessage.textContent = '';
+
   chrome.storage.sync.get(['blacklist'], (result) => {
     const blacklist = result.blacklist || DEFAULT_BLACKLIST;
     blacklist.push(site);
@@ -219,10 +222,21 @@ function addSite() {
 }
 
 function removeSite(index) {
-  chrome.storage.sync.get(['blacklist'], (result) => {
-    const blacklist = result.blacklist || DEFAULT_BLACKLIST;
-    blacklist.splice(index, 1);
-    chrome.storage.sync.set({ blacklist }, () => renderList(blacklist));
+  chrome.storage.sync.get(['blacklist', 'sessionActive', 'sessionEnd'], (result) => {
+    const isSessionActive = result.sessionActive && result.sessionEnd > Date.now();
+    
+    if (isSessionActive) {
+      if (blacklistMessage) {
+        blacklistMessage.textContent = "Cannot remove sites while a focus session is active.";
+        setTimeout(() => { if (blacklistMessage) blacklistMessage.textContent = ''; }, 3000);
+      }
+    } else {
+      const blacklist = result.blacklist || DEFAULT_BLACKLIST;
+      blacklist.splice(index, 1);
+      chrome.storage.sync.set({ blacklist }, () => {
+        renderList(blacklist);
+      });
+    }
   });
 }
 
@@ -377,8 +391,16 @@ focusToggle.addEventListener('click', () => {
   });
 });
 
-blacklistBtn.addEventListener('click', () => { mainMenu.style.display = 'none'; blacklistMenu.style.display = 'block'; });
-backBtn.addEventListener('click', () => { blacklistMenu.style.display = 'none'; mainMenu.style.display = 'block'; });
+blacklistBtn.addEventListener('click', () => {
+  mainMenu.style.display = 'none';
+  blacklistMenu.style.display = 'block';
+  loadSites(); // Reload sites to get correct button states
+});
+backBtn.addEventListener('click', () => {
+  blacklistMenu.style.display = 'none';
+  mainMenu.style.display = 'block';
+  if (blacklistMessage) blacklistMessage.textContent = ''; // Clear message on back
+});
 historyBtn.addEventListener('click', () => {
   mainMenu.style.display = 'none';
   historyMenu.style.display = 'block';
