@@ -32,6 +32,7 @@ async function listAvailableModels() {
 
 let apiCallCount = 0;
 let lastResetTime = Date.now();
+let offscreenCreating = null;
 
 // background.js
 async function generateContextualContent(pageTitle) {
@@ -172,4 +173,27 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
         if (chrome.runtime.lastError) return;
         checkAndRoast(activeInfo.tabId, tab);
     });
+});
+
+async function ensureOffscreen() {
+    if (await chrome.offscreen.hasDocument()) return;
+    if (offscreenCreating) {
+        await offscreenCreating;
+        return;
+    }
+    offscreenCreating = chrome.offscreen.createDocument({
+        url: "offscreen.html",
+        reasons: ["AUDIO_PLAYBACK"],
+        justification: "Play notification sounds for annoyance mode."
+    });
+    await offscreenCreating;
+    offscreenCreating = null;
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message && message.action === "PLAY_SOUND") {
+        ensureOffscreen().then(() => {
+            chrome.runtime.sendMessage({ action: "OFFSCREEN_PLAY", file: message.file });
+        }).catch(() => { });
+    }
 });

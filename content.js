@@ -30,6 +30,16 @@ let redirectHandler = null;
 let lastRedirectTime = Date.now();
 let chaosTimeouts = [];
 let chaosInterval = null;
+const AUDIO_FILES = [
+  "audio/alert.mp3",
+  "audio/notification_sound.mp3",
+  "audio/slack_notification.mp3",
+  "audio/teams_notification.mp3",
+  "audio/telegram_notification.mp3",
+  "audio/twitter_notification.mp3",
+  "audio/vk_notification.mp3",
+  "audio/whatsapp.mp3"
+];
 
 // Helper to get a random integer
 function getRandomInt(min, max) {
@@ -274,28 +284,8 @@ function slowLoad() {
 // Function to generate annoying beep/glitch (Sonic Pest)
 function playAnnoyingSound() {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-
-    const audioCtx = new AudioContext();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.type = Math.random() > 0.5 ? 'sawtooth' : 'square';
-    const freq = getRandomInt(900, 2200); // Higher pitch
-    oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
-
-    // Longer glitch effect
-    oscillator.frequency.exponentialRampToValueAtTime(freq / 2, audioCtx.currentTime + 0.3);
-
-    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.002, audioCtx.currentTime + 0.6);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.6);
+    const file = AUDIO_FILES[getRandomInt(0, AUDIO_FILES.length - 1)];
+    chrome.runtime.sendMessage({ action: "PLAY_SOUND", file });
   } catch (e) { /* AudioContext might be blocked */ }
 }
 

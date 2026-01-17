@@ -5,7 +5,8 @@
   "description": "Discourages browsing distracting sites by injecting 90s-style popups and fake ads.",
   "permissions": [
     "storage",
-    "scripting"
+    "scripting",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"
