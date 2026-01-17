@@ -84,10 +84,7 @@
   <div id="mainMenu">
     <h3>Productivity Enforcer</h3>
     <div style="text-align: center; margin-bottom: 10px;">
-      Total Focus: <span id="totalTime">0</span> mins
-    </div>
-    <div style="text-align: center; margin-bottom: 10px; font-weight: bold; color: #006400;">
-      Productivity Score: <span id="scoreValue">1000</span>
+      Today's Focus: <span id="totalTime">0</span> mins
     </div>
 
     <div class="input-group" style="flex-direction: column;">
@@ -101,6 +98,7 @@
     <button id="startBtn" style="width: 100%; margin-bottom: 5px;">Start Focus</button>
     <button id="stopBtn" style="width: 100%; margin-bottom: 5px; display: none;">Stop</button>
     <button id="blacklistBtn" style="width: 100%;">Edit Blacklist</button>
+    <button id="historyBtn" style="width: 100%; margin-top: 5px;">View History</button>
   </div>
 
   <div id="blacklistMenu" style="display: none;">
@@ -113,6 +111,12 @@
     </div>
 
     <ul id="siteList"></ul>
+  </div>
+
+  <div id="historyMenu" style="display: none;">
+    <h3>Focus History</h3>
+    <button id="historyBackBtn" style="margin-bottom: 10px;">&lt; Back</button>
+    <ul id="historyList"></ul>
   </div>
   <script src="popup.js"></script>
 </body>

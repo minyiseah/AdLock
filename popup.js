@@ -12,6 +12,10 @@ const backBtn = document.getElementById('backBtn');
 const blacklistBtn = document.getElementById('blacklistBtn');
 const mainMenu = document.getElementById('mainMenu');
 const blacklistMenu = document.getElementById('blacklistMenu');
+const historyBtn = document.getElementById('historyBtn');
+const historyMenu = document.getElementById('historyMenu');
+const historyList = document.getElementById('historyList');
+const historyBackBtn = document.getElementById('historyBackBtn');
 
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
@@ -19,7 +23,6 @@ const durationInput = document.getElementById('duration');
 const intensityInput = document.getElementById('intensity');
 const timerDisplay = document.getElementById('timerDisplay');
 const totalTimeDisplay = document.getElementById('totalTime');
-const scoreValue = document.getElementById('scoreValue');
 
 let timerInterval;
 
@@ -39,18 +42,30 @@ function renderList(blacklist) {
   });
 }
 
+function renderHistory(history) {
+  historyList.innerHTML = '';
+  const dates = Object.keys(history).sort().reverse();
+  dates.forEach(date => {
+    const ms = history[date];
+    const mins = Math.floor(ms / 60000);
+    const li = document.createElement('li');
+    li.textContent = `${date}: ${mins} mins`;
+    historyList.appendChild(li);
+  });
+}
+
 function loadSites() {
-  chrome.storage.sync.get(['blacklist', 'totalFocusTime'], (result) => {
+  chrome.storage.sync.get(['blacklist'], (result) => {
     const blacklist = result.blacklist || DEFAULT_BLACKLIST;
     renderList(blacklist);
-    totalTimeDisplay.textContent = Math.floor((result.totalFocusTime || 0) / 60000);
   });
 
-  // Load Score
-  chrome.storage.local.get(['productivityScore'], (result) => {
-    if (result.productivityScore !== undefined) {
-      scoreValue.textContent = result.productivityScore;
-    }
+  chrome.storage.local.get(['dailyHistory'], (result) => {
+    const history = result.dailyHistory || {};
+    const today = new Date().toLocaleDateString('en-CA');
+    const todayMs = history[today] || 0;
+    totalTimeDisplay.textContent = Math.floor(todayMs / 60000);
+    renderHistory(history);
   });
 }
 
@@ -137,41 +152,50 @@ function startSession() {
 }
 
 function stopSession() {
-  chrome.storage.sync.get(['sessionStart', 'totalFocusTime'], (result) => {
-    const start = result.sessionStart || Date.now();
-    const currentTotal = result.totalFocusTime || 0;
-    const elapsed = Date.now() - start;
+  chrome.storage.sync.get(['sessionStart'], (syncResult) => {
+    chrome.storage.local.get(['dailyHistory'], (localResult) => {
+      const start = syncResult.sessionStart || Date.now();
+      const elapsed = Date.now() - start;
+      const today = new Date().toLocaleDateString('en-CA');
 
-    // Only add time if it was actually running
-    const newTotal = currentTotal + elapsed;
+      const history = localResult.dailyHistory || {};
+      history[today] = (history[today] || 0) + elapsed;
 
-    chrome.storage.sync.set({
-      sessionActive: false,
-      totalFocusTime: newTotal
-    }, () => {
-      totalTimeDisplay.textContent = Math.floor(newTotal / 60000);
-      updateTimerUI(false, 0);
+      chrome.storage.sync.set({ sessionActive: false });
+      chrome.storage.local.set({ dailyHistory: history }, () => {
+        totalTimeDisplay.textContent = Math.floor(history[today] / 60000);
+        renderHistory(history);
+        updateTimerUI(false, 0);
+      });
     });
   });
 }
 
 function checkSessionStatus() {
-  chrome.storage.sync.get(['sessionActive', 'sessionEnd', 'sessionStart', 'totalFocusTime'], (result) => {
-    if (result.sessionActive && result.sessionEnd < Date.now()) {
+  chrome.storage.sync.get(['sessionActive', 'sessionEnd', 'sessionStart'], (syncResult) => {
+    if (syncResult.sessionActive && syncResult.sessionEnd < Date.now()) {
       // Session finished while closed
-      const start = result.sessionStart || (result.sessionEnd - 30 * 60000);
-      const duration = result.sessionEnd - start;
-      const newTotal = (result.totalFocusTime || 0) + duration;
+      const start = syncResult.sessionStart || (syncResult.sessionEnd - 30 * 60000);
+      const duration = syncResult.sessionEnd - start;
+      const dateKey = new Date(syncResult.sessionEnd).toLocaleDateString('en-CA');
 
-      chrome.storage.sync.set({
-        sessionActive: false,
-        totalFocusTime: newTotal
-      }, () => {
-        totalTimeDisplay.textContent = Math.floor(newTotal / 60000);
-        updateTimerUI(false, 0);
+      chrome.storage.local.get(['dailyHistory'], (localResult) => {
+        const history = localResult.dailyHistory || {};
+        history[dateKey] = (history[dateKey] || 0) + duration;
+
+        chrome.storage.sync.set({ sessionActive: false });
+        chrome.storage.local.set({ dailyHistory: history }, () => {
+          // If the session ended today, update display
+          const today = new Date().toLocaleDateString('en-CA');
+          if (dateKey === today) {
+            totalTimeDisplay.textContent = Math.floor(history[today] / 60000);
+          }
+          renderHistory(history);
+          updateTimerUI(false, 0);
+        });
       });
     } else {
-      updateTimerUI(result.sessionActive, result.sessionEnd);
+      updateTimerUI(syncResult.sessionActive, syncResult.sessionEnd);
     }
   });
 }
@@ -182,15 +206,10 @@ stopBtn.addEventListener('click', stopSession);
 
 blacklistBtn.addEventListener('click', () => { mainMenu.style.display = 'none'; blacklistMenu.style.display = 'block'; });
 backBtn.addEventListener('click', () => { blacklistMenu.style.display = 'none'; mainMenu.style.display = 'block'; });
+historyBtn.addEventListener('click', () => { mainMenu.style.display = 'none'; historyMenu.style.display = 'block'; });
+historyBackBtn.addEventListener('click', () => { historyMenu.style.display = 'none'; mainMenu.style.display = 'block'; });
 
 document.addEventListener('DOMContentLoaded', () => {
   loadSites();
   checkSessionStatus();
-});
-
-// Listen for score updates
-chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && changes.productivityScore) {
-    scoreValue.textContent = changes.productivityScore.newValue;
-  }
 });

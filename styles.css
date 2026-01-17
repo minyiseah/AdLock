@@ -25,6 +25,25 @@
   cursor: pointer;
 }
 
+.annoyance-ad-close {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: red;
+  color: white;
+  border: 2px solid white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: Arial, sans-serif;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+  z-index: 100001;
+}
+
 .annoyance-popup-container {
   position: fixed;
   top: 0;
@@ -107,5 +126,55 @@
 
   to {
     top: 20px;
+  }
+}
+
+.annoyance-bottom-ad {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100px;
+  background: yellow;
+  border-top: 5px solid red;
+  z-index: 99999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: "Impact", sans-serif;
+  font-size: 30px;
+  color: red;
+  text-transform: uppercase;
+  box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.5);
+}
+
+.annoyance-floating-ad {
+  position: fixed;
+  top: 50%;
+  left: -300px;
+  width: 250px;
+  background: cyan;
+  border: 3px solid blue;
+  padding: 15px;
+  z-index: 99999;
+  font-family: "Comic Sans MS", cursive;
+  text-align: center;
+  box-shadow: 5px 5px 0px rgba(0, 0, 0, 0.5);
+  animation: floatAcross 10s linear infinite;
+}
+
+@keyframes floatAcross {
+  0% {
+    left: -300px;
+    top: 20%;
+  }
+
+  50% {
+    top: 80%;
+  }
+
+  100% {
+    left: 100%;
+    top: 20%;
   }
 }

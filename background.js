@@ -1,43 +1,5 @@
 // background.js
 
-// Initialize score
-chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.local.set({ productivityScore: 1000 });
-});
-
-let pointInterval;
-
-// Manage point accumulation based on session state
-function handleSessionState() {
-    chrome.storage.sync.get(['sessionActive', 'sessionEnd'], (result) => {
-        if (result.sessionActive && Date.now() < result.sessionEnd) {
-            if (!pointInterval) {
-                pointInterval = setInterval(() => {
-                    chrome.storage.local.get(['productivityScore'], (res) => {
-                        const newScore = (res.productivityScore || 1000) + 10;
-                        chrome.storage.local.set({ productivityScore: newScore });
-                    });
-                }, 60000); // Every minute
-            }
-        } else {
-            if (pointInterval) {
-                clearInterval(pointInterval);
-                pointInterval = null;
-            }
-        }
-    });
-}
-
-// Listen for session changes to start/stop point accumulation
-chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'sync' && (changes.sessionActive || changes.sessionEnd)) {
-        handleSessionState();
-    }
-});
-
-// Initial check on load
-handleSessionState();
-
 // Roasting Logic
 const MOCK_ROASTS = [
     "Oh look, reading [Title] instead of working. Classic.",
@@ -63,29 +25,54 @@ const DEFAULT_BLACKLIST = [
     "youtube.com"
 ];
 
+function checkAndRoast(tabId, tab) {
+    if (!tab.url) return;
+
+    chrome.storage.sync.get(['blacklist', 'sessionActive', 'sessionEnd'], async (result) => {
+        if (!result.sessionActive || Date.now() > result.sessionEnd) return;
+
+        const blacklist = result.blacklist || DEFAULT_BLACKLIST;
+        const url = new URL(tab.url);
+        const hostname = url.hostname;
+
+        // Check if site is blacklisted
+        const isBlacklisted = blacklist.some(site => hostname === site || hostname.endsWith('.' + site));
+
+        if (isBlacklisted) {
+            // Generate and send roast
+            const roast = await generateRoast(tab.title);
+            chrome.tabs.sendMessage(tabId, { action: "ROAST", text: roast }).catch(() => { });
+        }
+    });
+}
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.url) {
-        chrome.storage.sync.get(['blacklist', 'sessionActive', 'sessionEnd'], async (result) => {
+    if (changeInfo.status === 'complete') {
+        checkAndRoast(tabId, tab);
+    }
+
+    // Persistent Noise: Prevent muting
+    if (changeInfo.mutedInfo && changeInfo.mutedInfo.muted) {
+        chrome.storage.sync.get(['blacklist', 'sessionActive', 'sessionEnd'], (result) => {
             if (!result.sessionActive || Date.now() > result.sessionEnd) return;
 
             const blacklist = result.blacklist || DEFAULT_BLACKLIST;
+            if (!tab.url) return;
             const url = new URL(tab.url);
             const hostname = url.hostname;
-
-            // Check if site is blacklisted
             const isBlacklisted = blacklist.some(site => hostname === site || hostname.endsWith('.' + site));
 
             if (isBlacklisted) {
-                // Deduct points
-                chrome.storage.local.get(['productivityScore'], (res) => {
-                    const newScore = (res.productivityScore || 1000) - 100;
-                    chrome.storage.local.set({ productivityScore: newScore });
-                });
-
-                // Generate and send roast
-                const roast = await generateRoast(tab.title);
-                chrome.tabs.sendMessage(tabId, { action: "ROAST", text: roast }).catch(() => { });
+                chrome.tabs.update(tabId, { muted: false });
+                chrome.tabs.sendMessage(tabId, { action: "ROAST", text: "Nice try. You can't mute your responsibilities." }).catch(() => { });
             }
         });
     }
+});
+
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    chrome.tabs.get(activeInfo.tabId, (tab) => {
+        if (chrome.runtime.lastError) return;
+        checkAndRoast(activeInfo.tabId, tab);
+    });
 });

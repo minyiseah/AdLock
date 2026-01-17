@@ -10,6 +10,7 @@ const SNARKY_MESSAGES = [
   "You promised yourself you'd work today."
 ];
 
+const MAX_ADS = 5;
 let scrollHandler = null;
 let chaosTimeouts = [];
 let chaosInterval = null;
@@ -19,8 +20,40 @@ function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+// Helper to create a close button
+function createCloseButton(parentElement) {
+  const btn = document.createElement('div');
+  btn.className = 'annoyance-ad-close';
+  btn.innerText = 'X';
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    parentElement.remove();
+  };
+  return btn;
+}
+
+// Helper to check overlap
+function getExistingRects() {
+  const ads = document.querySelectorAll('.annoyance-fake-ad, .annoyance-bottom-ad, .annoyance-floating-ad');
+  return Array.from(ads).map(ad => ad.getBoundingClientRect());
+}
+
+function isOverlapping(rect, existingRects) {
+  for (let other of existingRects) {
+    if (!(rect.right < other.left ||
+      rect.left > other.right ||
+      rect.bottom < other.top ||
+      rect.top > other.bottom)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Function to create a fake ad
 function createFakeAd() {
+  if (document.querySelectorAll('.annoyance-fake-ad').length >= MAX_ADS) return;
+
   const ad = document.createElement('div');
   ad.className = 'annoyance-fake-ad';
 
@@ -28,21 +61,76 @@ function createFakeAd() {
   adText.innerText = "CLICK HERE TO WIN A FREE IPAD!!!";
   ad.appendChild(adText);
 
-  // Random positioning logic (sidebar or top)
-  const positions = ['fixed', 'absolute'];
-  ad.style.position = positions[getRandomInt(0, 1)];
-  ad.style.top = getRandomInt(10, 80) + '%';
+  ad.appendChild(createCloseButton(ad));
 
-  // Randomize side
-  if (Math.random() > 0.5) {
-    ad.style.right = '10px';
-  } else {
-    ad.style.left = '10px';
-  }
-
+  // Positioning logic with overlap check
+  ad.style.position = 'fixed';
+  ad.style.visibility = 'hidden'; // Hide while measuring
   document.body.appendChild(ad);
 
-  // Ads are now persistent until session ends
+  const width = ad.offsetWidth;
+  const height = ad.offsetHeight;
+  const maxWidth = window.innerWidth - width;
+  const maxHeight = window.innerHeight - height;
+
+  let attempts = 0;
+  let placed = false;
+  const existing = getExistingRects();
+
+  while (attempts < 10) {
+    const left = getRandomInt(0, maxWidth);
+    const top = getRandomInt(0, maxHeight);
+
+    const newRect = {
+      left: left,
+      top: top,
+      right: left + width,
+      bottom: top + height
+    };
+
+    if (!isOverlapping(newRect, existing)) {
+      ad.style.left = left + 'px';
+      ad.style.top = top + 'px';
+      ad.style.visibility = 'visible';
+      placed = true;
+      break;
+    }
+    attempts++;
+  }
+
+  if (!placed) {
+    ad.remove();
+  }
+}
+
+// Function to create a large bottom banner ad
+function createBottomAd() {
+  if (document.querySelector('.annoyance-bottom-ad')) return; // Only one at a time
+
+  const ad = document.createElement('div');
+  ad.className = 'annoyance-bottom-ad';
+  ad.innerText = "HOT SINGLES IN YOUR AREA!";
+
+  ad.appendChild(createCloseButton(ad));
+  document.body.appendChild(ad);
+}
+
+// Function to create a floating ad
+function createFloatingAd() {
+  if (document.querySelectorAll('.annoyance-floating-ad').length >= 2) return;
+
+  const ad = document.createElement('div');
+  ad.className = 'annoyance-floating-ad';
+
+  const text = document.createElement('div');
+  text.innerText = "DOWNLOAD MORE RAM NOW!";
+  ad.appendChild(text);
+
+  ad.appendChild(createCloseButton(ad));
+
+  // Randomize animation duration slightly
+  ad.style.animationDuration = getRandomInt(8, 15) + 's';
+  document.body.appendChild(ad);
 }
 
 // Function to create the annoying popup
@@ -121,6 +209,34 @@ function slowLoad() {
   });
 }
 
+// Function to generate annoying beep/glitch (Sonic Pest)
+function playAnnoyingSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    const audioCtx = new AudioContext();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = Math.random() > 0.5 ? 'sawtooth' : 'square';
+    const freq = getRandomInt(800, 1500); // High pitch
+    oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+    // Glitch effect
+    oscillator.frequency.exponentialRampToValueAtTime(freq / 2, audioCtx.currentTime + 0.1);
+
+    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.15);
+  } catch (e) { /* AudioContext might be blocked */ }
+}
+
 function cleanup() {
   // Clear all scheduled annoyances
   chaosTimeouts.forEach(clearTimeout);
@@ -140,6 +256,8 @@ function cleanup() {
   // Remove injected DOM elements
   document.querySelectorAll('.annoyance-fake-ad').forEach(el => el.remove());
   document.querySelectorAll('.annoyance-popup-container').forEach(el => el.remove());
+  document.querySelectorAll('.annoyance-bottom-ad').forEach(el => el.remove());
+  document.querySelectorAll('.annoyance-floating-ad').forEach(el => el.remove());
 
   // Reset body styles
   document.body.style.opacity = '';
@@ -154,6 +272,19 @@ function startChaos(intensity, sessionEnd) {
   // Apply persistent annoyances
   if (intensity >= 3) slowScroll(intensity);
   if (intensity >= 4) slowLoad();
+
+  // Sonic Pest (Audio Annoyance)
+  if (intensity >= 4) {
+    const audioLoop = () => {
+      if (document.hidden) { chaosTimeouts.push(setTimeout(audioLoop, 1000)); return; }
+      const delay = getRandomInt(5000, 15000); // Random intervals
+      chaosTimeouts.push(setTimeout(() => {
+        if (!document.hidden) playAnnoyingSound();
+        audioLoop();
+      }, delay));
+    };
+    audioLoop();
+  }
 
   // Immediate ad to discourage refreshing
   createFakeAd();
@@ -180,7 +311,16 @@ function startChaos(intensity, sessionEnd) {
     if (document.hidden) { chaosTimeouts.push(setTimeout(adLoop, 1000)); return; }
     const delay = getRandomInt(10000 / intensity, 20000 / intensity);
     chaosTimeouts.push(setTimeout(() => {
-      if (!document.hidden) createFakeAd();
+      if (!document.hidden) {
+        const rand = Math.random();
+        if (rand < 0.6) {
+          createFakeAd();
+        } else if (rand < 0.8) {
+          createBottomAd();
+        } else {
+          createFloatingAd();
+        }
+      }
       adLoop();
     }, delay));
   };
@@ -221,6 +361,12 @@ checkState();
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'sync') checkState();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    checkState();
+  }
 });
 
 // Listen for roast messages
