@@ -1,0 +1,24 @@
+{
+    "manifest_version": 3,
+    "name": "The Annoyance: Productivity Enforcer",
+    "version": "1.0",
+    "description": "Discourages browsing distracting sites by injecting 90s-style popups and fake ads.",
+    "permissions": [
+      "storage",
+      "scripting"
+    ],
+    "host_permissions": [
+      "<all_urls>"
+    ],
+    "action": {
+      "default_popup": "popup.html"
+    },
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": ["content.js"],
+        "css": ["styles.css"]
+      }
+    ]
+  }
+  

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      width: 300px;
+      font-family: "Comic Sans MS", cursive, sans-serif;
+      background-color: #c0c0c0;
+      padding: 10px;
+    }
+    h3 { margin-top: 0; text-align: center; color: #000080; }
+    .input-group { display: flex; gap: 5px; margin-bottom: 10px; }
+    input { flex: 1; padding: 5px; border: 2px inset white; }
+    button {
+      background-color: #c0c0c0; border: 2px outset white; cursor: pointer; font-weight: bold;
+    }
+    button:active { border: 2px inset white; }
+    ul { list-style-type: none; padding: 0; margin: 0; background: white; border: 2px inset white; max-height: 200px; overflow-y: auto; }
+    li {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 5px; border-bottom: 1px dotted #ccc;
+    }
+    li:last-child { border-bottom: none; }
+    .remove-btn { color: red; border: 1px solid red; font-size: 10px; margin-left: 5px; }
+  </style>
+</head>
+<body>
+  <h3>Distraction List</h3>
+  
+  <div class="input-group">
+    <input type="text" id="newSite" placeholder="example.com">
+    <button id="addBtn">Add</button>
+  </div>
+
+  <ul id="siteList"></ul>
+
+  <script src="popup.js"></script>
+</body>
+</html>
