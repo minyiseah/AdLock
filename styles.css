@@ -2,77 +2,110 @@
 
 /* Keyframes for blinking text */
 @keyframes blinker {
-    50% { opacity: 0; }
+  50% {
+    opacity: 0;
   }
-  
-  .annoyance-fake-ad {
-    z-index: 99999;
-    width: 200px;
-    padding: 20px;
-    background-color: #ff00ff; /* Magenta */
-    border: 5px dashed #00ff00; /* Lime Green */
-    color: yellow;
-    font-family: "Comic Sans MS", "Comic Sans", cursive;
-    font-weight: bold;
-    font-size: 18px;
-    text-align: center;
-    box-shadow: 10px 10px 0px #000000;
-    animation: blinker 1s linear infinite;
-    cursor: pointer;
+}
+
+.annoyance-fake-ad {
+  z-index: 99999;
+  width: 200px;
+  padding: 20px;
+  background-color: #ff00ff;
+  /* Magenta */
+  border: 5px dashed #00ff00;
+  /* Lime Green */
+  color: yellow;
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  font-weight: bold;
+  font-size: 18px;
+  text-align: center;
+  box-shadow: 10px 10px 0px #000000;
+  animation: blinker 1s linear infinite;
+  cursor: pointer;
+}
+
+.annoyance-popup-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 100000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.annoyance-popup-window {
+  width: 400px;
+  background-color: #c0c0c0;
+  /* Windows 95 Grey */
+  border: 3px outset #ffffff;
+  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.5);
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  display: flex;
+  flex-direction: column;
+}
+
+.annoyance-popup-title {
+  background: linear-gradient(90deg, #000080, #1084d0);
+  color: white;
+  padding: 5px 10px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.annoyance-popup-message {
+  padding: 30px;
+  text-align: center;
+  font-size: 20px;
+  color: red;
+  background-color: #ffff00;
+  /* Bright Yellow background for text */
+}
+
+.annoyance-close-btn {
+  margin: 10px;
+  padding: 10px;
+  background-color: #c0c0c0;
+  border: 2px outset #ffffff;
+  font-weight: bold;
+  cursor: pointer;
+  align-self: center;
+  transition: transform 0.1s ease-in-out;
+  /* Smooth movement for the evasion */
+}
+
+.annoyance-close-btn:active {
+  border: 2px inset #ffffff;
+}
+
+.annoyance-roast-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #000;
+  color: #fff;
+  padding: 15px 25px;
+  border-radius: 30px;
+  font-family: sans-serif;
+  font-weight: bold;
+  z-index: 2147483647;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  border: 2px solid #ff0000;
+  animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    top: -100px;
   }
-  
-  .annoyance-popup-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 100000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    pointer-events: auto;
+
+  to {
+    top: 20px;
   }
-  
-  .annoyance-popup-window {
-    width: 400px;
-    background-color: #c0c0c0; /* Windows 95 Grey */
-    border: 3px outset #ffffff;
-    box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
-    font-family: "Comic Sans MS", "Comic Sans", cursive;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .annoyance-popup-title {
-    background: linear-gradient(90deg, #000080, #1084d0);
-    color: white;
-    padding: 5px 10px;
-    font-weight: bold;
-    font-size: 14px;
-  }
-  
-  .annoyance-popup-message {
-    padding: 30px;
-    text-align: center;
-    font-size: 20px;
-    color: red;
-    background-color: #ffff00; /* Bright Yellow background for text */
-  }
-  
-  .annoyance-close-btn {
-    margin: 10px;
-    padding: 10px;
-    background-color: #c0c0c0;
-    border: 2px outset #ffffff;
-    font-weight: bold;
-    cursor: pointer;
-    align-self: center;
-    transition: transform 0.1s ease-in-out; /* Smooth movement for the evasion */
-  }
-  
-  .annoyance-close-btn:active {
-    border: 2px inset #ffffff;
-  }
-  
+}
