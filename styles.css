@@ -160,21 +160,5 @@
   font-family: "Comic Sans MS", cursive;
   text-align: center;
   box-shadow: 5px 5px 0px rgba(0, 0, 0, 0.5);
-  animation: floatAcross 10s linear infinite;
-}
-
-@keyframes floatAcross {
-  0% {
-    left: -300px;
-    top: 20%;
-  }
-
-  50% {
-    top: 80%;
-  }
-
-  100% {
-    left: 100%;
-    top: 20%;
-  }
+  /* Animation handled by JS */
 }

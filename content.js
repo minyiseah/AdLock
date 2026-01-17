@@ -1,6 +1,6 @@
 // content.js
 
-const SNARKY_MESSAGES = [
+let SNARKY_MESSAGES = [
   "Your boss is disappointed in you.",
   "Is this really worth your time?",
   "Go touch grass.",
@@ -10,14 +10,35 @@ const SNARKY_MESSAGES = [
   "You promised yourself you'd work today."
 ];
 
+let AD_HEADLINES = [
+  "CLICK HERE TO WIN A FREE IPAD!!!",
+  "HOT SINGLES IN YOUR AREA!",
+  "DOWNLOAD MORE RAM NOW!",
+  "EARN $5000 FROM HOME!",
+  "ONE WEIRD TRICK TO LOSE BELLY FAT"
+];
+
+const SAFE_SITES = [
+  "https://www.google.com",
+  "https://www.linkedin.com",
+  "https://indeed.com"
+];
+
 const MAX_ADS = 5;
 let scrollHandler = null;
+let redirectHandler = null;
+let lastRedirectTime = Date.now();
 let chaosTimeouts = [];
 let chaosInterval = null;
 
 // Helper to get a random integer
 function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function redirectToSafeSite() {
+  const win = window.open(SAFE_SITES[Math.floor(Math.random() * SAFE_SITES.length)], '_blank');
+  if (win) win.focus();
 }
 
 // Helper to create a close button
@@ -58,9 +79,10 @@ function createFakeAd() {
   ad.className = 'annoyance-fake-ad';
 
   const adText = document.createElement('span');
-  adText.innerText = "CLICK HERE TO WIN A FREE IPAD!!!";
+  adText.innerText = AD_HEADLINES[getRandomInt(0, AD_HEADLINES.length - 1)];
   ad.appendChild(adText);
 
+  ad.onclick = redirectToSafeSite;
   ad.appendChild(createCloseButton(ad));
 
   // Positioning logic with overlap check
@@ -109,8 +131,9 @@ function createBottomAd() {
 
   const ad = document.createElement('div');
   ad.className = 'annoyance-bottom-ad';
-  ad.innerText = "HOT SINGLES IN YOUR AREA!";
+  ad.innerText = AD_HEADLINES[getRandomInt(0, AD_HEADLINES.length - 1)];
 
+  ad.onclick = redirectToSafeSite;
   ad.appendChild(createCloseButton(ad));
   document.body.appendChild(ad);
 }
@@ -123,18 +146,23 @@ function createFloatingAd() {
   ad.className = 'annoyance-floating-ad';
 
   const text = document.createElement('div');
-  text.innerText = "DOWNLOAD MORE RAM NOW!";
+  text.innerText = AD_HEADLINES[getRandomInt(0, AD_HEADLINES.length - 1)];
   ad.appendChild(text);
 
+  ad.onclick = redirectToSafeSite;
   ad.appendChild(createCloseButton(ad));
 
-  // Randomize animation duration slightly
-  ad.style.animationDuration = getRandomInt(8, 15) + 's';
+  // Set initial position
+  ad.style.left = '50%';
+  ad.style.top = '50%';
   document.body.appendChild(ad);
+  animateFloatingAd(ad);
 }
 
 // Function to create the annoying popup
 function createAnnoyingPopup() {
+  if (document.querySelector('.annoyance-popup-container')) return;
+
   const overlay = document.createElement('div');
   overlay.className = 'annoyance-popup-container';
 
@@ -163,7 +191,8 @@ function createAnnoyingPopup() {
     }
   });
 
-  closeBtn.addEventListener('click', () => {
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     overlay.remove();
   });
 
@@ -171,7 +200,26 @@ function createAnnoyingPopup() {
   popup.appendChild(message);
   popup.appendChild(closeBtn);
   overlay.appendChild(popup);
+  popup.onclick = redirectToSafeSite;
   document.body.appendChild(overlay);
+}
+
+// Function to animate floating ad randomly
+function animateFloatingAd(ad) {
+  if (!document.body.contains(ad)) return;
+
+  const maxX = window.innerWidth - ad.offsetWidth;
+  const maxY = window.innerHeight - ad.offsetHeight;
+
+  const newX = getRandomInt(0, maxX);
+  const newY = getRandomInt(0, maxY);
+  const duration = getRandomInt(2, 5);
+
+  ad.style.transition = `top ${duration}s ease-in-out, left ${duration}s ease-in-out`;
+  ad.style.top = `${newY}px`;
+  ad.style.left = `${newX}px`;
+
+  setTimeout(() => animateFloatingAd(ad), duration * 1000);
 }
 
 // Function to slow down scrolling
@@ -179,13 +227,26 @@ function slowScroll(intensity) {
   // Higher intensity = more scroll jank
   if (scrollHandler) window.removeEventListener('wheel', scrollHandler);
   scrollHandler = (e) => {
-    if (Math.random() < (intensity * 0.1)) {
-      e.preventDefault();
-      // Occasionally scroll the wrong way or stop it
-      if (Math.random() > 0.5) {
-        window.scrollBy(0, -10);
-      }
+    e.preventDefault(); // Take full control
+
+    const rand = Math.random();
+
+    // 1. Randomly scroll upwards/reverse (Chaos)
+    if (rand < (intensity * 0.02)) {
+      window.scrollBy(0, -e.deltaY * 1); // Reverse direction less hard
+      return;
     }
+
+    // 2. Buffering/Lag (Stutter)
+    if (rand < (intensity * 0.05)) {
+      setTimeout(() => {
+        window.scrollBy(0, e.deltaY * 0.8);
+      }, getRandomInt(100, 300)); // Reduced lag
+      return;
+    }
+
+    // 3. Very Slow (Sludge mode)
+    window.scrollBy(0, e.deltaY * 0.5);
   };
   window.addEventListener('wheel', scrollHandler, { passive: false });
 }
@@ -237,6 +298,28 @@ function playAnnoyingSound() {
   } catch (e) { /* AudioContext might be blocked */ }
 }
 
+// Function to randomly redirect on interaction
+function setupRandomRedirects(intensity) {
+  if (redirectHandler) {
+    document.removeEventListener('click', redirectHandler, true);
+    document.removeEventListener('keydown', redirectHandler, true);
+  }
+
+  redirectHandler = (e) => {
+    // Limit to once every 10 seconds
+    if (Date.now() - lastRedirectTime > 10000) {
+      lastRedirectTime = Date.now();
+      e.preventDefault();
+      e.stopPropagation();
+      const win = window.open(SAFE_SITES[Math.floor(Math.random() * SAFE_SITES.length)], '_blank');
+      if (win) win.focus();
+    }
+  };
+
+  document.addEventListener('click', redirectHandler, true);
+  document.addEventListener('keydown', redirectHandler, true);
+}
+
 function cleanup() {
   // Clear all scheduled annoyances
   chaosTimeouts.forEach(clearTimeout);
@@ -251,6 +334,13 @@ function cleanup() {
   if (scrollHandler) {
     window.removeEventListener('wheel', scrollHandler);
     scrollHandler = null;
+  }
+
+  // Remove redirect listeners
+  if (redirectHandler) {
+    document.removeEventListener('click', redirectHandler, true);
+    document.removeEventListener('keydown', redirectHandler, true);
+    redirectHandler = null;
   }
 
   // Remove injected DOM elements
@@ -272,6 +362,7 @@ function startChaos(intensity, sessionEnd) {
   // Apply persistent annoyances
   if (intensity >= 3) slowScroll(intensity);
   if (intensity >= 4) slowLoad();
+  if (intensity >= 3) setupRandomRedirects(intensity);
 
   // Sonic Pest (Audio Annoyance)
   if (intensity >= 4) {
@@ -299,7 +390,7 @@ function startChaos(intensity, sessionEnd) {
   // Loop for Popups (Every 30-60 seconds)
   const popupLoop = () => {
     if (document.hidden) { chaosTimeouts.push(setTimeout(popupLoop, 1000)); return; } // Check if tab is active
-    const delay = getRandomInt(30000 / intensity, 60000 / intensity); // Scale with intensity
+    const delay = getRandomInt(20000 / intensity, 100000 / intensity); // Scale with intensity (Less frequent)
     chaosTimeouts.push(setTimeout(() => {
       if (!document.hidden) createAnnoyingPopup();
       popupLoop(); // Schedule next one
@@ -309,7 +400,7 @@ function startChaos(intensity, sessionEnd) {
   // Loop for Ads (More frequent, every 10-20 seconds)
   const adLoop = () => {
     if (document.hidden) { chaosTimeouts.push(setTimeout(adLoop, 1000)); return; }
-    const delay = getRandomInt(10000 / intensity, 20000 / intensity);
+    const delay = getRandomInt(40000 / intensity, 80000 / intensity);
     chaosTimeouts.push(setTimeout(() => {
       if (!document.hidden) {
         const rand = Math.random();
@@ -373,13 +464,17 @@ document.addEventListener('visibilitychange', () => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "ROAST") {
     showRoastToast(request.text);
+  } else if (request.action === "UPDATE_CONTENT") {
+    if (request.data.roast) showRoastToast(request.data.roast);
+    if (request.data.ads && request.data.ads.length > 0) AD_HEADLINES = request.data.ads;
+    if (request.data.messages && request.data.messages.length > 0) SNARKY_MESSAGES = request.data.messages;
   }
 });
 
 function showRoastToast(text) {
   const toast = document.createElement('div');
   toast.className = 'annoyance-roast-toast';
-  toast.innerText = "🔥 AI ROAST: " + text;
+  toast.innerText = text;
   document.body.appendChild(toast);
 
   setTimeout(() => {

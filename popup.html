@@ -5,46 +5,77 @@
   <style>
     body {
       width: 300px;
-      font-family: "Comic Sans MS", cursive, sans-serif;
-      background-color: #c0c0c0;
-      padding: 10px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #ffffff;
+      color: #333;
+      padding: 15px;
+      margin: 0;
     }
 
     h3 {
       margin-top: 0;
       text-align: center;
-      color: #000080;
+      color: #2e7d32;
+      font-weight: 600;
+      margin-bottom: 15px;
     }
 
     .input-group {
       display: flex;
       gap: 5px;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
     }
 
     input {
       flex: 1;
-      padding: 5px;
-      border: 2px inset white;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #4caf50;
     }
 
     button {
-      background-color: #c0c0c0;
-      border: 2px outset white;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
       cursor: pointer;
-      font-weight: bold;
+      font-weight: 500;
+      transition: background-color 0.2s;
     }
 
-    button:active {
-      border: 2px inset white;
+    button:hover {
+      background-color: #388e3c;
+    }
+
+    button#stopBtn {
+      background-color: #d32f2f;
+    }
+
+    button#stopBtn:hover {
+      background-color: #b71c1c;
+    }
+
+    button.secondary {
+      background-color: #f1f8e9;
+      color: #2e7d32;
+    }
+
+    button.secondary:hover {
+      background-color: #dcedc8;
     }
 
     ul {
       list-style-type: none;
       padding: 0;
       margin: 0;
-      background: white;
-      border: 2px inset white;
+      border: 1px solid #eee;
+      border-radius: 4px;
       max-height: 200px;
       overflow-y: auto;
     }
@@ -53,8 +84,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 5px;
-      border-bottom: 1px dotted #ccc;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
     }
 
     li:last-child {
@@ -62,48 +94,167 @@
     }
 
     .remove-btn {
-      color: red;
-      border: 1px solid red;
-      font-size: 10px;
+      background: transparent;
+      color: #d32f2f;
+      padding: 2px 6px;
+      font-size: 12px;
       margin-left: 5px;
     }
 
-    input[type=range] {
-      width: 100%;
+    .remove-btn:hover {
+      background: #ffebee;
     }
 
     label {
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: 8px;
+      font-weight: 500;
+      font-size: 13px;
+      color: #555;
+    }
+
+    input[type=range] {
+      width: 100%;
+      accent-color: #4caf50;
+    }
+
+    /* Stats & Calendar */
+    .stats-container {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      background: #f9f9f9;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    .stat-box {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 16px;
       font-weight: bold;
+      color: #2e7d32;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #777;
+      text-transform: uppercase;
+    }
+
+    .calendar-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(10px, 1fr));
+      gap: 2px;
+      margin-top: 10px;
+    }
+
+    .calendar-month-view {
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    .calendar-day {
+      height: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      cursor: pointer;
+      background-color: #ebedf0;
+      border-radius: 2px;
+    }
+
+    .level-1 {
+      background-color: #c6e48b;
+    }
+
+    .level-2 {
+      background-color: #7bc96f;
+    }
+
+    .level-3 {
+      background-color: #239a3b;
+    }
+
+    .level-4 {
+      background-color: #196127;
+    }
+
+    /* Toggle Button Styles */
+    .toggle-container {
+      position: relative;
+      width: 100%;
+      height: 60px;
+      background-color: #e0e0e0;
+      border-radius: 30px;
+      cursor: pointer;
+      margin-bottom: 15px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+      border: 1px solid #ccc;
+      transition: background-color 0.3s;
+      box-sizing: border-box;
+    }
+
+    .toggle-container.active {
+      background-color: #e8f5e9;
+      border-color: #4caf50;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      width: 50px;
+      height: 50px;
+      background-color: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      transition: left 1s linear;
+      z-index: 2;
+    }
+
+    .toggle-label {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      top: 50%;
+      transform: translateY(-50%);
+      font-weight: bold;
+      color: #555;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 1;
+      font-size: 14px;
     }
   </style>
 </head>
 
 <body>
   <div id="mainMenu">
-    <h3>Productivity Enforcer</h3>
-    <div style="text-align: center; margin-bottom: 10px;">
-      Today's Focus: <span id="totalTime">0</span> mins
+    <h3>Ad-On</h3>
+
+    <div id="timerDisplay"
+      style="text-align: center; font-size: 32px; font-weight: bold; margin: 15px 0; color: #2e7d32; display: none;">
     </div>
 
     <div class="input-group" style="flex-direction: column;">
       <label>Focus Duration (min): <input type="number" id="duration" value="30" min="1"></label>
-      <label>Intensity (1-5): <input type="range" id="intensity" min="1" max="5" value="3"></label>
     </div>
 
-    <div id="timerDisplay"
-      style="text-align: center; font-size: 24px; font-weight: bold; margin: 10px 0; display: none;"></div>
-
-    <button id="startBtn" style="width: 100%; margin-bottom: 5px;">Start Focus</button>
-    <button id="stopBtn" style="width: 100%; margin-bottom: 5px; display: none;">Stop</button>
-    <button id="blacklistBtn" style="width: 100%;">Edit Blacklist</button>
-    <button id="historyBtn" style="width: 100%; margin-top: 5px;">View History</button>
+    <div id="focusToggle" class="toggle-container">
+      <div id="toggleThumb" class="toggle-thumb"></div>
+      <span id="toggleLabel" class="toggle-label">Start Focus</span>
+    </div>
+    <button id="blacklistBtn" class="secondary" style="width: 100%; margin-bottom: 5px;">Edit Blacklist</button>
+    <button id="historyBtn" class="secondary" style="width: 100%;">View History</button>
   </div>
 
   <div id="blacklistMenu" style="display: none;">
     <h3>Distraction List</h3>
-    <button id="backBtn" style="margin-bottom: 10px;">&lt; Back</button>
+    <button id="backBtn" class="secondary" style="margin-bottom: 10px;">&lt; Back</button>
 
     <div class="input-group">
       <input type="text" id="newSite" placeholder="example.com">
@@ -115,8 +266,42 @@
 
   <div id="historyMenu" style="display: none;">
     <h3>Focus History</h3>
-    <button id="historyBackBtn" style="margin-bottom: 10px;">&lt; Back</button>
-    <ul id="historyList"></ul>
+    <button id="historyBackBtn" class="secondary" style="margin-bottom: 10px;">&lt; Back</button>
+
+    <div class="stats-container">
+      <div class="stat-box">
+        <div class="stat-value" id="statDay">0m</div>
+        <div class="stat-label">Today</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="statWeek">0m</div>
+        <div class="stat-label">Week</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="statMonth">0m</div>
+        <div class="stat-label">Month</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="statStreak">0</div>
+        <div class="stat-label">Streak</div>
+      </div>
+    </div>
+
+    <div class="calendar-header"
+      style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; margin-bottom: 5px;">
+      <button id="prevMonthBtn" class="secondary" style="padding: 2px 8px; font-size: 12px;">&lt;</button>
+      <span id="currentMonthLabel" style="font-size: 13px; font-weight: bold;"></span>
+      <button id="nextMonthBtn" class="secondary" style="padding: 2px 8px; font-size: 12px;">&gt;</button>
+    </div>
+
+    <div id="calendarGrid" class="calendar-container calendar-month-view">
+      <!-- Heatmap generated by JS -->
+    </div>
+
+    <div id="sessionDetails" style="margin-top: 10px; display: none; border-top: 1px solid #eee; padding-top: 10px;">
+      <div id="selectedDateLabel" style="font-size: 12px; font-weight: bold; color: #2e7d32; margin-bottom: 5px;"></div>
+      <ul id="sessionList" style="max-height: 100px; overflow-y: auto; font-size: 11px;"></ul>
+    </div>
   </div>
   <script src="popup.js"></script>
 </body>
