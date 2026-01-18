@@ -68,11 +68,30 @@ let currentViewDate = new Date();
 const MAX_STUDY_FILE_SIZE = 25 * 1024 * 1024;
 const MAX_IMAGE_DIMENSION = 1024;
 const MAX_TEXT_PREVIEW_CHARS = 6000;
+const MAX_PDF_PAGES = 8;
 
 let studyUploadState = { file: null, fileMeta: null };
 let studyQuizState = null;
 let studySelectedOption = null;
 const STUDY_SUBMIT_DEFAULT_TEXT = 'Generate Quiz';
+let pdfjsLibPromise = null;
+
+function loadPdfJs() {
+  if (!pdfjsLibPromise) {
+    pdfjsLibPromise = import(chrome.runtime.getURL('libs/pdfjs/pdf.mjs'))
+      .then(module => {
+        if (module && module.GlobalWorkerOptions) {
+          module.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('libs/pdfjs/pdf.worker.mjs');
+        }
+        return module;
+      })
+      .catch((err) => {
+        console.error('Failed to load pdf.js', err);
+        return null;
+      });
+  }
+  return pdfjsLibPromise;
+}
 
 function renderList(blacklist) {
   siteList.innerHTML = '';
@@ -504,10 +523,33 @@ async function downscaleImageToDataUrl(file) {
 }
 
 async function extractTextPreviewFromPdf(file) {
+  const pdfjsLib = await loadPdfJs();
   const buffer = await readFileAsArrayBuffer(file);
-  const limited = buffer.byteLength > 4 * 1024 * 1024 ? buffer.slice(0, 4 * 1024 * 1024) : buffer;
-  const decoder = new TextDecoder('utf-8', { fatal: false });
-  const raw = decoder.decode(limited);
+  if (pdfjsLib) {
+    try {
+      const typedArray = new Uint8Array(buffer);
+      const loadingTask = pdfjsLib.getDocument({ data: typedArray, useWorkerFetch: false });
+      const pdf = await loadingTask.promise;
+      const totalPages = Math.min(pdf.numPages, MAX_PDF_PAGES);
+      let text = '';
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str || '').join(' ');
+        text += pageText + '\n';
+        if (text.length > MAX_TEXT_PREVIEW_CHARS * 1.5) break;
+      }
+      const cleaned = sanitizePreviewText(text);
+      if (cleaned.length > 100) {
+        return cleaned;
+      }
+    } catch (err) {
+      console.warn('pdf.js extraction failed, falling back to plain decode', err);
+    }
+  }
+
+  const decoder = new TextDecoder('latin1', { fatal: false });
+  const raw = decoder.decode(buffer.slice(0, 4 * 1024 * 1024));
   return sanitizePreviewText(raw);
 }
 
@@ -517,8 +559,11 @@ async function prepareStudyPayload(file) {
     return { imageDataUrl };
   }
   if (file.type === 'application/pdf') {
-    const textPreview = await extractTextPreviewFromPdf(file);
-    if (!textPreview) throw new Error('Could not read that PDF. Try exporting a page as an image.');
+    let textPreview = await extractTextPreviewFromPdf(file);
+    if (!textPreview) {
+      const imageDataUrl = await downscaleImageToDataUrl(file);
+      return { imageDataUrl };
+    }
     return { textPreview };
   }
   if (file.type.startsWith('text/')) {
