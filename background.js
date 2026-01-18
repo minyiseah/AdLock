@@ -14,39 +14,58 @@ const MOCK_ROASTS = [
 ];
 
 async function listAvailableModels() {
-    const GEMINI_API_KEY = CONFIG.GEMINI_API_KEY;
-    console.log("Attempting to list available models...");
+    const OPENAI_API_KEY = CONFIG.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+        console.warn("OPENAI_API_KEY is missing. Set it in config.js to list models.");
+        return;
+    }
+    console.log("Attempting to list available OpenAI models...");
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+        const response = await fetch("https://api.openai.com/v1/models", {
+            headers: {
+                "Authorization": `Bearer ${OPENAI_API_KEY}`
+            }
+        });
         const data = await response.json();
-        console.log("--- AVAILABLE GEMINI MODELS ---");
-        if (data.models) {
-            data.models.forEach(m => console.log(m.name));
+        console.log("--- AVAILABLE OPENAI MODELS ---");
+        if (data.data) {
+            data.data.forEach(m => console.log(m.id));
         } else {
             console.log("Response:", JSON.stringify(data, null, 2));
         }
     } catch (error) {
-        console.error("Failed to list models:", error);
+        console.error("Failed to list OpenAI models:", error);
     }
 }
 
 let apiCallCount = 0;
 let lastResetTime = Date.now();
+let lastApiResult = null;
+let lastApiResultTime = 0;
 let offscreenCreating = null;
 
 // background.js
 async function generateContextualContent(pageTitle) {
-    const GEMINI_API_KEY = CONFIG.GEMINI_API_KEY;
+    const OPENAI_API_KEY = CONFIG.OPENAI_API_KEY;
     // 1. Fallback if no title exists
     if (!pageTitle) pageTitle = "a mystery website";
+    if (!OPENAI_API_KEY) {
+        console.error("Missing OPENAI_API_KEY in config.js");
+        return null;
+    }
 
-    // Rate Limit Check (5 calls per minute)
+    // Rate Limit Check (1 call per minute to keep usage low)
     const now = Date.now();
     if (now - lastResetTime > 60000) {
         apiCallCount = 0;
         lastResetTime = now;
     }
-    if (apiCallCount >= 5) {
+    if (apiCallCount >= 1) {
+        if (lastApiResult && (now - lastApiResultTime) <= 60000) {
+            console.warn("Rate limit hit; reusing last AI payload.");
+            return lastApiResult;
+        }
+        console.warn("Rate limit hit and no cached payload available.");
         return null;
     }
     apiCallCount++;
@@ -59,34 +78,77 @@ async function generateContextualContent(pageTitle) {
     - "messages": An array of 5 short, snarky popup warnings about wasting time on this specific site.`;
 
     try {
+        console.log("[OpenAI] Dispatching request for:", pageTitle, "at", new Date(now).toISOString());
+
         // 3. Call the API
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            "https://api.openai.com/v1/chat/completions",
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Authorization": `Bearer ${OPENAI_API_KEY}`
                 },
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: prompt }]
-                    }],
-                    safetySettings: [
-                        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                    model: "gpt-4o-mini",
+                    temperature: 0.7,
+                    max_tokens: 300,
+                    response_format: {
+                        type: "json_schema",
+                        json_schema: {
+                            name: "adon_payload",
+                            schema: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    roast: { type: "string" },
+                                    ads: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        minItems: 5,
+                                        maxItems: 5
+                                    },
+                                    messages: {
+                                        type: "array",
+                                        items: { type: "string" },
+                                        minItems: 5,
+                                        maxItems: 5
+                                    }
+                                },
+                                required: ["roast", "ads", "messages"]
+                            }
+                        }
+                    },
+                    messages: [
+                        {
+                            role: "system",
+                            content: "You are a sarcastic productivity bot that only responds with raw minified JSON."
+                        },
+                        {
+                            role: "user",
+                            content: prompt
+                        }
                     ]
                 })
             }
         );
 
+        if (!response.ok) {
+            const body = await response.text();
+            console.error("OpenAI HTTP error:", response.status, response.statusText, body);
+            return null;
+        }
+
         // 4. Parse the result
         const data = await response.json();
+        console.log("[OpenAI] Received response:", {
+            status: response.status,
+            model: data.model,
+            usage: data.usage
+        });
 
-        // Safety check: sometimes the API blocks content if it's too "mean" (Safety Settings).
-        if (data.candidates && data.candidates[0].content) {
-            let text = data.candidates[0].content.parts[0].text;
+        if (data.choices && data.choices[0].message && data.choices[0].message.content) {
+            let text = data.choices[0].message.content.trim();
             // Clean up markdown code blocks if present
             text = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
@@ -96,9 +158,18 @@ async function generateContextualContent(pageTitle) {
             if (firstBrace !== -1 && lastBrace !== -1) {
                 text = text.substring(firstBrace, lastBrace + 1);
             }
-            return JSON.parse(text);
+            let parsed;
+            try {
+                parsed = JSON.parse(text);
+            } catch (parseError) {
+                console.error("Failed to parse OpenAI response:", parseError, "raw:", text);
+                return null;
+            }
+            lastApiResult = parsed;
+            lastApiResultTime = Date.now();
+            return parsed;
         } else {
-            console.error("Gemini API Failure - No candidates returned. Response:", JSON.stringify(data, null, 2));
+            console.error("OpenAI API failure - No choices returned. Response:", JSON.stringify(data, null, 2));
             await listAvailableModels();
         }
     } catch (error) {
