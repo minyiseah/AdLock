@@ -3,21 +3,260 @@
 
 <head>
   <style>
+    /* GLOBAL RESET */
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --brand-primary: #2e7d32;
+      /* Deep Green */
+      --brand-light: #4caf50;
+      /* Brighter Green for accents */
+      --brand-bg: #f1f8e9;
+      /* Very light green bg */
+      --text-main: #333;
+      --text-sub: #888;
+      --border-color: #e0e0e0;
+      /* ABP Toggle Variables */
+      --toggle-bg-off: #e0e0e0;
+      --toggle-bg-on: #2e7d32;
+      --toggle-thumb-size: 32px;
+      --toggle-track-height: 14px;
+      --toggle-width: 60px;
+    }
+
     body {
-      width: 300px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 340px;
+      font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif;
       background-color: #ffffff;
-      color: #333;
-      padding: 15px;
+      color: var(--text-main);
       margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    /* --- HEADER --- */
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--border-color);
+      background-color: #fff;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 19px;
+      color: #444;
+    }
+
+    .brand-logo-img {
+      height: 28px;
+      width: auto;
+      border-radius: 4px;
+    }
+
+    .brand-section strong {
+      font-weight: 700;
+      color: var(--brand-primary);
+    }
+
+    .icon-actions {
+      display: flex;
+      gap: 15px;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      transition: color 0.2s;
+    }
+
+    .icon-btn:hover {
+      color: var(--brand-primary);
+    }
+
+    .icon-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    /* --- MAIN CARD --- */
+    .main-card {
+      padding: 20px;
+      background: #fff;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+
+    .control-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .label-main {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .label-sub {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    input[type="number"]#duration {
+      border: none;
+      border-bottom: 1px dotted #999;
+      font-size: 13px;
+      width: 40px;
+      color: var(--text-sub);
+      padding: 0;
+      outline: none;
+      text-align: center;
+    }
+
+    input[type="number"]#duration:focus {
+      border-bottom: 1px solid var(--brand-primary);
+      color: #333;
+    }
+
+    /* --- TOGGLE BUTTON (FIXED ALIGNMENT) --- */
+    .toggle-container {
+      position: relative;
+      width: var(--toggle-width);
+      height: var(--toggle-track-height);
+      background-color: var(--toggle-bg-off);
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      flex-shrink: 0;
+    }
+
+    .toggle-container.active {
+      background-color: var(--toggle-bg-off);
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      /* FIX: Use transform to handle vertical centering perfectly */
+      transform: translateY(-50%);
+      width: var(--toggle-thumb-size);
+      height: var(--toggle-thumb-size);
+      background-color: #aaa;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      transition: left 0.3s ease, background-color 0.3s;
+      z-index: 2;
+
+      background-position: center;
+      background-repeat: no-repeat;
+      background-image: none;
+    }
+
+    /* ACTIVE STATE */
+    .toggle-container.active .toggle-thumb {
+      /* FIX: Math ensures it hits the EXACT end pixel (60px - 32px = 28px left) */
+      left: calc(100% - var(--toggle-thumb-size));
+
+      background-color: transparent;
+      background-image: url('images/power-on.png');
+      background-size: 100%;
+      box-shadow: none;
+    }
+
+    /* Clear old pseudo-elements */
+    .toggle-thumb::after {
+      content: "";
+    }
+
+    #toggleLabel {
+      display: none;
+    }
+
+
+    /* --- STATS SECTION --- */
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 15px;
+    }
+
+    .stat-card {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: 700;
+      color: #333;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .stat-text {
+      font-size: 13px;
+      color: var(--text-sub);
+      line-height: 1.4;
+    }
+
+    /* --- SUB MENUS --- */
+    .menu-container {
+      padding: 20px;
     }
 
     h3 {
-      margin-top: 0;
-      text-align: center;
-      color: #2e7d32;
-      font-weight: 600;
-      margin-bottom: 15px;
+      font-size: 16px;
+      margin: 0 0 15px 0;
+      color: #333;
+      border-bottom: 2px solid var(--brand-primary);
+      padding-bottom: 8px;
+      display: inline-block;
+    }
+
+    button.secondary {
+      background-color: #f5f5f5;
+      border: 1px solid #ddd;
+      color: #333;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    button.secondary:hover {
+      background-color: #e9e9e9;
     }
 
     .input-group {
@@ -26,215 +265,107 @@
       margin-bottom: 15px;
     }
 
-    input {
+    .input-group input {
       flex: 1;
       padding: 8px;
       border: 1px solid #ddd;
       border-radius: 4px;
-      outline: none;
     }
 
-    input:focus {
-      border-color: #4caf50;
-    }
-
-    button {
-      background-color: #4caf50;
+    .input-group button#addBtn {
+      background-color: var(--brand-primary);
       color: white;
       border: none;
-      padding: 8px 12px;
       border-radius: 4px;
+      padding: 0 15px;
       cursor: pointer;
-      font-weight: 500;
-      transition: background-color 0.2s;
     }
 
-    button:hover {
-      background-color: #388e3c;
-    }
-
-    button#stopBtn {
-      background-color: #d32f2f;
-    }
-
-    button#stopBtn:hover {
-      background-color: #b71c1c;
-    }
-
-    button.secondary {
-      background-color: #f1f8e9;
-      color: #2e7d32;
-    }
-
-    button.secondary:hover {
-      background-color: #dcedc8;
-    }
-
-    ul {
-      list-style-type: none;
+    ul#siteList {
+      list-style: none;
       padding: 0;
-      margin: 0;
       border: 1px solid #eee;
       border-radius: 4px;
       max-height: 200px;
       overflow-y: auto;
     }
 
-    li {
+    ul#siteList li {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      padding: 8px;
-      border-bottom: 1px solid #eee;
-      font-size: 14px;
-    }
-
-    li:last-child {
-      border-bottom: none;
+      font-size: 13px;
     }
 
     .remove-btn {
-      background: transparent;
       color: #d32f2f;
-      padding: 2px 6px;
-      font-size: 12px;
-      margin-left: 5px;
+      border: none;
+      background: none;
+      cursor: pointer;
     }
 
-    .remove-btn:hover {
-      background: #ffebee;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-      font-size: 13px;
-      color: #555;
-    }
-
-    input[type=range] {
-      width: 100%;
-      accent-color: #4caf50;
-    }
-
-    /* Stats & Calendar */
-    .stats-container {
+    /* History Stats */
+    .history-stats {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 15px;
-      background: #f9f9f9;
+      background: var(--brand-bg);
       padding: 10px;
       border-radius: 6px;
+      margin-bottom: 15px;
     }
 
-    .stat-box {
+    .mini-stat {
       text-align: center;
     }
 
-    .stat-value {
-      font-size: 16px;
+    .mini-val {
       font-weight: bold;
-      color: #2e7d32;
+      color: var(--brand-primary);
+      font-size: 14px;
     }
 
-    .stat-label {
+    .mini-lbl {
       font-size: 10px;
-      color: #777;
+      color: #666;
       text-transform: uppercase;
     }
 
+    /* Calendar */
     .calendar-container {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(10px, 1fr));
+      grid-template-columns: repeat(7, 1fr);
       gap: 2px;
       margin-top: 10px;
     }
 
-    .calendar-month-view {
-      grid-template-columns: repeat(7, 1fr);
-    }
-
     .calendar-day {
-      height: 25px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      cursor: pointer;
-      background-color: #ebedf0;
+      height: 20px;
+      background: #eee;
       border-radius: 2px;
     }
 
     .level-1 {
-      background-color: #c6e48b;
+      background: #c8e6c9;
     }
 
     .level-2 {
-      background-color: #7bc96f;
+      background: #81c784;
     }
 
     .level-3 {
-      background-color: #239a3b;
+      background: #4caf50;
     }
 
     .level-4 {
-      background-color: #196127;
+      background: #2e7d32;
     }
 
-    /* Toggle Button Styles */
-    .toggle-container {
-      position: relative;
-      width: 100%;
-      height: 60px;
-      background-color: #e0e0e0;
-      border-radius: 30px;
-      cursor: pointer;
-      margin-bottom: 15px;
-      overflow: hidden;
-      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
-      border: 1px solid #ccc;
-      transition: background-color 0.3s;
-      box-sizing: border-box;
-    }
-
-    .toggle-container.active {
-      background-color: #e8f5e9;
-      border-color: #4caf50;
-    }
-
-    .toggle-thumb {
-      position: absolute;
-      top: 5px;
-      left: 5px;
-      width: 50px;
-      height: 50px;
-      background-color: white;
-      border-radius: 50%;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-      transition: left 1s linear;
-      z-index: 2;
-    }
-
-    .toggle-label {
-      position: absolute;
-      width: 100%;
-      text-align: center;
-      top: 50%;
-      transform: translateY(-50%);
-      font-weight: bold;
-      color: #555;
-      text-transform: uppercase;
-      pointer-events: none;
-      z-index: 1;
-      font-size: 14px;
-    }
-
-    /* Captcha modal */
+    /* Captcha Overlay */
     .captcha-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.55);
+      background: rgba(0, 0, 0, 0.6);
       display: none;
       align-items: center;
       justify-content: center;
@@ -244,226 +375,203 @@
     .captcha-modal {
       width: 90%;
       max-width: 320px;
-      background: #ffffff;
+      background: #fff;
       border-radius: 8px;
-      padding: 12px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    }
-
-    .captcha-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
-    .captcha-title {
-      font-weight: 600;
-      color: #2e7d32;
-    }
-
-    .captcha-progress {
-      font-size: 11px;
-      color: #777;
-    }
-
-    .captcha-body {
-      margin: 8px 0 10px;
-    }
-
-    .captcha-error {
-      font-size: 11px;
-      color: #d32f2f;
-      min-height: 14px;
-      margin-top: 6px;
+      padding: 15px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     }
 
     .captcha-footer {
       display: flex;
-      gap: 6px;
+      gap: 10px;
+      margin-top: 10px;
     }
 
     .captcha-footer button {
       flex: 1;
-    }
-
-    .captcha-instructions {
-      font-size: 12px;
-      margin-bottom: 8px;
-      color: #444;
-    }
-
-    .captcha-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-    }
-
-    .captcha-tile {
-      height: 52px;
-      border: 2px solid #eee;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-sizing: border-box;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .captcha-tile.selected {
-      border-color: #4caf50;
-      box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-    }
-
-    .captcha-shape-circle {
-      border-radius: 50%;
-    }
-
-    .captcha-options {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-    }
-
-    .captcha-option {
-      border: 1px solid #ddd;
-      background: #f9f9f9;
-      border-radius: 6px;
       padding: 8px;
       cursor: pointer;
+      border-radius: 4px;
+      border: none;
     }
 
-    .captcha-option.selected {
-      border-color: #4caf50;
-      background: #e8f5e9;
+    #captchaVerify {
+      background: var(--brand-primary);
+      color: white;
     }
 
-    .captcha-triangle {
-      width: 60px;
-      height: 60px;
-      background: #4caf50;
-      clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-      margin: 0 auto;
+    #captchaCancel {
+      background: #eee;
+      color: #333;
     }
 
-    .captcha-triangle.small {
-      width: 40px;
-      height: 40px;
+    .promo-banner {
+      background-color: #e3f2fd;
+      color: #0d47a1;
+      padding: 10px 20px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #bbdefb;
     }
 
-    .captcha-text-image {
-      background: #f1f1f1;
-      padding: 8px 6px;
-      text-align: center;
-      letter-spacing: 2px;
+    .promo-close {
+      background: none;
+      border: none;
+      color: #0d47a1;
       font-weight: bold;
-      margin-bottom: 8px;
-      border-radius: 6px;
-      border: 1px dashed #bbb;
-    }
-
-    .captcha-text-image span {
-      display: inline-block;
-      margin: 0 1px;
-    }
-
-    .captcha-slider-value {
-      font-size: 12px;
-      color: #555;
-      margin-top: 6px;
-      text-align: center;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0 5px;
+      line-height: 1;
     }
   </style>
 </head>
 
 <body>
+
   <div id="mainMenu">
-    <h3>Ad-On</h3>
 
-    <div id="timerDisplay"
-      style="text-align: center; font-size: 32px; font-weight: bold; margin: 15px 0; color: #2e7d32; display: none;">
+    <div class="header-row">
+      <div class="brand-section">
+        <img src="images/logo-128.png" alt="Logo" class="brand-logo-img">
+        <span>Ad-On</span>
+      </div>
+
+      <div class="icon-actions">
+        <button id="historyBtn" class="icon-btn" title="View History">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
+          </svg>
+        </button>
+
+        <button id="blacklistBtn" class="icon-btn" title="Edit Blacklist">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
+          </svg>
+        </button>
+      </div>
     </div>
 
-    <div class="input-group" style="flex-direction: column;">
-      <label>Focus Duration (min): <input type="number" id="duration" value="30" min="1"></label>
+    <div id="upgradePromo" class="promo-banner">
+      <span>Want to upgrade to AdLock Plus?</span>
+      <button id="closePromo" class="promo-close">&times;</button>
     </div>
 
-    <div id="focusToggle" class="toggle-container">
-      <div id="toggleThumb" class="toggle-thumb"></div>
-      <span id="toggleLabel" class="toggle-label">Start Focus</span>
+    <div class="main-card">
+
+      <div class="control-row">
+        <div class="control-info">
+          <span class="label-main">Productivity Mode</span>
+          <span class="label-sub">
+            Duration: <input type="number" id="duration" value="30" min="1"> min
+          </span>
+        </div>
+
+        <div id="focusToggle" class="toggle-container">
+          <div id="toggleThumb" class="toggle-thumb"></div>
+          <span id="toggleLabel">Start Focus</span>
+        </div>
+      </div>
+
+      <div class="section-title">Session Stats</div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="timerDisplay">--</div>
+          <div class="stat-text">remaining<br>in session</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-number" style="color: var(--brand-primary); font-size: 20px;">
+            Active
+          </div>
+          <div class="stat-text">protection<br>status</div>
+        </div>
+      </div>
+
     </div>
-    <button id="blacklistBtn" class="secondary" style="width: 100%; margin-bottom: 5px;">Edit Blacklist</button>
-    <button id="historyBtn" class="secondary" style="width: 100%;">View History</button>
   </div>
 
-  <div id="blacklistMenu" style="display: none;">
-    <h3>Distraction List</h3>
-    <button id="backBtn" class="secondary" style="margin-bottom: 10px;">&lt; Back</button>
-    <div id="blacklistMessage" style="color: #d32f2f; margin-bottom: 10px; text-align: center; font-size: 12px; font-weight: 500;"></div>
+
+  <div id="blacklistMenu" class="menu-container" style="display: none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h3>Distraction List</h3>
+      <button id="backBtn" class="secondary">Back</button>
+    </div>
+
+    <div id="blacklistMessage" style="color: #d32f2f; margin-bottom: 10px; font-size: 12px;"></div>
 
     <div class="input-group">
       <input type="text" id="newSite" placeholder="example.com">
-      <button id="addBtn">Add</button>
+      <button id="addBtn">Block</button>
     </div>
 
-    <ul id="siteList"></ul>
+    <ul id="siteList">
+    </ul>
   </div>
 
-  <div id="historyMenu" style="display: none;">
-    <h3>Focus History</h3>
-    <button id="historyBackBtn" class="secondary" style="margin-bottom: 10px;">&lt; Back</button>
 
-    <div class="stats-container">
-      <div class="stat-box">
-        <div class="stat-value" id="statDay">0m</div>
-        <div class="stat-label">Today</div>
+  <div id="historyMenu" class="menu-container" style="display: none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h3>Focus History</h3>
+      <button id="historyBackBtn" class="secondary">Back</button>
+    </div>
+
+    <div class="history-stats">
+      <div class="mini-stat">
+        <div class="mini-val" id="statDay">0m</div>
+        <div class="mini-lbl">Today</div>
       </div>
-      <div class="stat-box">
-        <div class="stat-value" id="statWeek">0m</div>
-        <div class="stat-label">Week</div>
+      <div class="mini-stat">
+        <div class="mini-val" id="statWeek">0m</div>
+        <div class="mini-lbl">Week</div>
       </div>
-      <div class="stat-box">
-        <div class="stat-value" id="statMonth">0m</div>
-        <div class="stat-label">Month</div>
+      <div class="mini-stat">
+        <div class="mini-val" id="statMonth">0m</div>
+        <div class="mini-lbl">Month</div>
       </div>
-      <div class="stat-box">
-        <div class="stat-value" id="statStreak">0</div>
-        <div class="stat-label">Streak</div>
+      <div class="mini-stat">
+        <div class="mini-val" id="statStreak">0</div>
+        <div class="mini-lbl">Streak</div>
       </div>
     </div>
 
-    <div class="calendar-header"
-      style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; margin-bottom: 5px;">
-      <button id="prevMonthBtn" class="secondary" style="padding: 2px 8px; font-size: 12px;">&lt;</button>
-      <span id="currentMonthLabel" style="font-size: 13px; font-weight: bold;"></span>
-      <button id="nextMonthBtn" class="secondary" style="padding: 2px 8px; font-size: 12px;">&gt;</button>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin: 10px 0;">
+      <button id="prevMonthBtn" class="secondary">&lt;</button>
+      <span id="currentMonthLabel"></span>
+      <button id="nextMonthBtn" class="secondary">&gt;</button>
     </div>
 
-    <div id="calendarGrid" class="calendar-container calendar-month-view">
-      <!-- Heatmap generated by JS -->
-    </div>
+    <div id="calendarGrid" class="calendar-container"></div>
 
-    <div id="sessionDetails" style="margin-top: 10px; display: none; border-top: 1px solid #eee; padding-top: 10px;">
-      <div id="selectedDateLabel" style="font-size: 12px; font-weight: bold; color: #2e7d32; margin-bottom: 5px;"></div>
-      <ul id="sessionList" style="max-height: 100px; overflow-y: auto; font-size: 11px;"></ul>
+    <div id="sessionDetails" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; display: none;">
+      <div id="selectedDateLabel"
+        style="font-size: 12px; font-weight: bold; color: var(--brand-primary); margin-bottom: 5px;"></div>
+      <ul id="sessionList" style="max-height: 100px; overflow-y: auto; padding:0; list-style:none; font-size:11px;">
+      </ul>
     </div>
   </div>
+
 
   <div id="captchaOverlay" class="captcha-overlay">
     <div class="captcha-modal">
-      <div class="captcha-header">
-        <div id="captchaTitle" class="captcha-title">Captcha</div>
-        <div id="captchaProgress" class="captcha-progress">Captcha 1 of 5</div>
+      <div class="header-row" style="padding: 0 0 10px 0; border:none; background:none;">
+        <div id="captchaTitle" style="font-weight:bold; color:var(--brand-primary);">Captcha</div>
+        <div id="captchaProgress" style="font-size:12px; color:#888;">1 of 5</div>
       </div>
-      <div id="captchaBody" class="captcha-body"></div>
-      <div id="captchaError" class="captcha-error"></div>
+      <div id="captchaBody"></div>
+      <div id="captchaError" style="color:red; font-size:12px; min-height:15px; margin:5px 0;"></div>
       <div class="captcha-footer">
-        <button id="captchaCancel" class="secondary">Keep Focus</button>
+        <button id="captchaCancel">Keep Focus</button>
         <button id="captchaVerify">Verify</button>
       </div>
     </div>
   </div>
+
   <script src="popup.js"></script>
 </body>
 

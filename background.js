@@ -14,98 +14,160 @@ const MOCK_ROASTS = [
 ];
 
 async function listAvailableModels() {
-    const GEMINI_API_KEY = CONFIG.GEMINI_API_KEY;
-    console.log("Attempting to list available models...");
+    const OPENAI_API_KEY = CONFIG.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+        console.warn("OPENAI_API_KEY is missing. Set it in config.js to list models.");
+        return;
+    }
+    console.log("Attempting to list available OpenAI models...");
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+        const response = await fetch("https://api.openai.com/v1/models", {
+            headers: {
+                "Authorization": `Bearer ${OPENAI_API_KEY}`
+            }
+        });
         const data = await response.json();
-        console.log("--- AVAILABLE GEMINI MODELS ---");
-        if (data.models) {
-            data.models.forEach(m => console.log(m.name));
+        console.log("--- AVAILABLE OPENAI MODELS ---");
+        if (data.data) {
+            data.data.forEach(m => console.log(m.id));
         } else {
             console.log("Response:", JSON.stringify(data, null, 2));
         }
     } catch (error) {
-        console.error("Failed to list models:", error);
+        console.error("Failed to list OpenAI models:", error);
     }
 }
 
-let apiCallCount = 0;
-let lastResetTime = Date.now();
+const DEFAULT_ADS = [
+    "CLICK HERE TO WIN A FREE IPAD!!!",
+    "HOT SINGLES IN YOUR AREA!",
+    "DOWNLOAD MORE RAM NOW!",
+    "EARN $5000 FROM HOME!",
+    "ONE WEIRD TRICK TO LOSE BELLY FAT"
+];
+
+const DEFAULT_MESSAGES = [
+    "Your boss is disappointed in you.",
+    "Is this really worth your time?",
+    "Go touch grass.",
+    "Productivity is dropping to 0%.",
+    "Why are you still here?"
+];
+
+const MAX_AD_ENTRIES = 5;
+const MAX_MESSAGE_ENTRIES = 5;
+const TYPE_SEQUENCE = ["roast", "ads", "messages"];
+const RATE_LIMIT_WINDOW = 60000;
+const MAX_STUDY_PREVIEW_LENGTH = 6000;
+
+const contentCache = new Map();
+let lastApiCallTime = 0;
+let lastApiContextKey = null;
 let offscreenCreating = null;
 
 // background.js
-async function generateContextualContent(pageTitle) {
-    const GEMINI_API_KEY = CONFIG.GEMINI_API_KEY;
-    // 1. Fallback if no title exists
+async function generateContextualContent(pageTitle, pageUrl, requestedType) {
+    const OPENAI_API_KEY = CONFIG.OPENAI_API_KEY;
     if (!pageTitle) pageTitle = "a mystery website";
-
-    // Rate Limit Check (5 calls per minute)
-    const now = Date.now();
-    if (now - lastResetTime > 60000) {
-        apiCallCount = 0;
-        lastResetTime = now;
-    }
-    if (apiCallCount >= 5) {
+    if (!OPENAI_API_KEY) {
+        console.error("Missing OPENAI_API_KEY in config.js");
         return null;
     }
-    apiCallCount++;
 
-    // 2. Construct the prompt
-    const prompt = `You are a sarcastic productivity bot. A user is procrastinating by visiting "${pageTitle}". 
-    Return a valid JSON object (no markdown formatting) with the following keys:
-    - "roast": A brutal, short (1 sentence) roast about why they should be working instead of visiting this site.
-    - "ads": An array of 5 short, funny, fake ad headlines related to this site's content.
-    - "messages": An array of 5 short, snarky popup warnings about wasting time on this specific site.`;
+    const contentType = requestedType || "roast";
+    const typeDescriptions = {
+        roast: "a vicious one-sentence accountability roast",
+        ads: "one short, funny fake ad headline",
+        messages: "one short, sarcastic popup warning"
+    };
+    const now = Date.now();
+    const prompt = `You are a sarcastic productivity enforcer. The user is procrastinating on "${pageTitle}" (${pageUrl}).
+Generate ${typeDescriptions[contentType]} tailored to this exact page context and domain. Make the language more gen z or modern, less boomer.
+Respond with valid JSON only: {"type":"${contentType}","text":"..."} (no markdown).`;
 
     try {
-        // 3. Call the API
+        console.log(`[OpenAI] Dispatching ${contentType} request for:`, pageTitle, "at", new Date(now).toISOString());
+
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            "https://api.openai.com/v1/chat/completions",
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "Authorization": `Bearer ${OPENAI_API_KEY}`
                 },
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: prompt }]
-                    }],
-                    safetySettings: [
-                        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-                        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+                    model: "gpt-4o-mini",
+                    temperature: 0.7,
+                    max_tokens: 200,
+                    response_format: {
+                        type: "json_schema",
+                        json_schema: {
+                            name: "adon_snippet",
+                            schema: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    type: {
+                                        type: "string",
+                                        enum: TYPE_SEQUENCE
+                                    },
+                                    text: { type: "string" }
+                                },
+                                required: ["type", "text"]
+                            }
+                        }
+                    },
+                    messages: [
+                        {
+                            role: "system",
+                            content: "You are a sarcastic productivity bot that only responds with raw minified JSON."
+                        },
+                        {
+                            role: "user",
+                            content: prompt
+                        }
                     ]
                 })
             }
         );
 
-        // 4. Parse the result
+        if (!response.ok) {
+            const body = await response.text();
+            console.error("OpenAI HTTP error:", response.status, response.statusText, body);
+            return null;
+        }
+
         const data = await response.json();
+        console.log("[OpenAI] Received response:", {
+            status: response.status,
+            model: data.model,
+            usage: data.usage
+        });
 
-        // Safety check: sometimes the API blocks content if it's too "mean" (Safety Settings).
-        if (data.candidates && data.candidates[0].content) {
-            let text = data.candidates[0].content.parts[0].text;
-            // Clean up markdown code blocks if present
+        if (data.choices && data.choices[0].message && data.choices[0].message.content) {
+            let text = data.choices[0].message.content.trim();
             text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-
-            // Extract JSON object if surrounded by other text
             const firstBrace = text.indexOf('{');
             const lastBrace = text.lastIndexOf('}');
             if (firstBrace !== -1 && lastBrace !== -1) {
                 text = text.substring(firstBrace, lastBrace + 1);
             }
-            return JSON.parse(text);
+            try {
+                const parsed = JSON.parse(text);
+                return parsed;
+            } catch (parseError) {
+                console.error("Failed to parse OpenAI response:", parseError, "raw:", text);
+                return null;
+            }
         } else {
-            console.error("Gemini API Failure - No candidates returned. Response:", JSON.stringify(data, null, 2));
+            console.error("OpenAI API failure - No choices returned. Response:", JSON.stringify(data, null, 2));
             await listAvailableModels();
         }
     } catch (error) {
         console.error("API Error:", error);
     }
 
-    // Return null to trigger fallback in caller
     return null;
 }
 
@@ -116,6 +178,198 @@ const DEFAULT_BLACKLIST = [
     "youtube.com"
 ];
 
+function getContextKey(rawUrl) {
+    try {
+        const url = new URL(rawUrl);
+        const segments = url.pathname.split('/').filter(Boolean);
+        const focus = segments.length >= 2 ? segments.slice(0, 2).join('/') : (segments[0] || 'root');
+        return `${url.hostname}/${focus}`;
+    } catch {
+        return null;
+    }
+}
+
+function getCacheEntry(contextKey) {
+    if (!contentCache.has(contextKey)) {
+        contentCache.set(contextKey, {
+            roast: null,
+            ads: [...DEFAULT_ADS],
+            messages: [...DEFAULT_MESSAGES],
+            nextTypeIndex: 0
+        });
+    }
+    return contentCache.get(contextKey);
+}
+
+function chooseNextType(cacheEntry) {
+    const type = TYPE_SEQUENCE[cacheEntry.nextTypeIndex] || "roast";
+    cacheEntry.nextTypeIndex = (cacheEntry.nextTypeIndex + 1) % TYPE_SEQUENCE.length;
+    return type;
+}
+
+function applySnippetToCache(cacheEntry, snippet) {
+    if (!snippet || !snippet.text) return;
+    if (snippet.type === "roast") {
+        cacheEntry.roast = snippet.text;
+    } else if (snippet.type === "ads") {
+        cacheEntry.ads.unshift(snippet.text);
+        cacheEntry.ads = cacheEntry.ads.slice(0, MAX_AD_ENTRIES);
+    } else if (snippet.type === "messages") {
+        cacheEntry.messages.unshift(snippet.text);
+        cacheEntry.messages = cacheEntry.messages.slice(0, MAX_MESSAGE_ENTRIES);
+    }
+}
+
+function getFallbackRoast(title) {
+    const random = MOCK_ROASTS[Math.floor(Math.random() * MOCK_ROASTS.length)];
+    return random.replace("[Title]", title || "this site");
+}
+
+function buildPayload(cacheEntry, title) {
+    if (!cacheEntry) return null;
+    const roastText = cacheEntry.roast || getFallbackRoast(title);
+    if (!cacheEntry.roast) {
+        cacheEntry.roast = roastText;
+    }
+    return {
+        roast: roastText,
+        ads: cacheEntry.ads.slice(0, MAX_AD_ENTRIES),
+        messages: cacheEntry.messages.slice(0, MAX_MESSAGE_ENTRIES)
+    };
+}
+
+function canCallOpenAI(contextKey) {
+    if (!lastApiContextKey || contextKey !== lastApiContextKey) {
+        return true;
+    }
+    return (Date.now() - lastApiCallTime) > RATE_LIMIT_WINDOW;
+}
+
+function sanitizeStudyTextInput(text) {
+    if (!text) return "";
+    return text.replace(/[^\x09\x0A\x0D\x20-\x7E]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_STUDY_PREVIEW_LENGTH);
+}
+
+async function generateStudyQuizQuestions(fileMeta, textPreview, imageDataUrl) {
+    const OPENAI_API_KEY = CONFIG.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) {
+        throw new Error("Missing OPENAI_API_KEY in config.js");
+    }
+    if (!fileMeta) {
+        throw new Error("Missing study file metadata.");
+    }
+
+    const cleanedText = sanitizeStudyTextInput(textPreview);
+    if (!cleanedText && !imageDataUrl) {
+        throw new Error("Could not read that file. Try a text-based PDF or a clear image screenshot.");
+    }
+
+    const userContent = [
+        {
+            type: "input_text",
+            text: `Use the study material below to craft exactly three short-answer quiz questions with their correct answers. Each question must reference specific facts from the material instead of trivia.`
+        },
+        {
+            type: "input_text",
+            text: `File details:\n- Name: ${fileMeta.name || 'unknown'}\n- Type: ${fileMeta.type || 'unknown'}\n- Size bytes: ${fileMeta.size || 0}`
+        }
+    ];
+
+    if (cleanedText) {
+        userContent.push({
+            type: "input_text",
+            text: `Study excerpt:\n${cleanedText}`
+        });
+    }
+
+    if (imageDataUrl && imageDataUrl.startsWith("data:")) {
+        userContent.push({
+            type: "input_image",
+            image_url: { url: imageDataUrl }
+        });
+    }
+
+    try {
+        const response = await fetch(
+            "https://api.openai.com/v1/chat/completions",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${OPENAI_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: "gpt-4o-mini",
+                    temperature: 0.4,
+                    max_tokens: 400,
+                    response_format: {
+                        type: "json_schema",
+                        json_schema: {
+                            name: "study_quiz",
+                            schema: {
+                                type: "object",
+                                additionalProperties: false,
+                                properties: {
+                                    questions: {
+                                        type: "array",
+                                        minItems: 3,
+                                        maxItems: 3,
+                                        items: {
+                                            type: "object",
+                                            additionalProperties: false,
+                                            properties: {
+                                                question: { type: "string" },
+                                                answer: { type: "string" }
+                                            },
+                                            required: ["question", "answer"]
+                                        }
+                                    }
+                                },
+                                required: ["questions"]
+                            }
+                        }
+                    },
+                    messages: [
+                        {
+                            role: "system",
+                            content: "You are a strict tutor who only outputs raw minified JSON."
+                        },
+                        {
+                            role: "user",
+                            content: userContent
+                        }
+                    ]
+                })
+            }
+        );
+
+        if (!response.ok) {
+            const body = await response.text();
+            throw new Error(`OpenAI HTTP error ${response.status}: ${body}`);
+        }
+
+        const data = await response.json();
+        if (data.choices && data.choices[0].message && data.choices[0].message.content) {
+            let text = data.choices[0].message.content.trim();
+            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                text = text.substring(firstBrace, lastBrace + 1);
+            }
+            const parsed = JSON.parse(text);
+            if (!parsed.questions || !Array.isArray(parsed.questions)) {
+                throw new Error("Invalid quiz payload from OpenAI.");
+            }
+            return parsed.questions.slice(0, 3);
+        }
+        throw new Error("OpenAI response missing quiz content.");
+    } catch (error) {
+        console.error("Study quiz generation failed:", error);
+        throw error;
+    }
+}
+
 function checkAndRoast(tabId, tab) {
     if (!tab.url) return;
 
@@ -125,19 +379,30 @@ function checkAndRoast(tabId, tab) {
         const blacklist = result.blacklist || DEFAULT_BLACKLIST;
         const url = new URL(tab.url);
         const hostname = url.hostname;
+        const contextKey = getContextKey(tab.url);
 
-        // Check if site is blacklisted
         const isBlacklisted = blacklist.some(site => hostname === site || hostname.endsWith('.' + site));
 
-        if (isBlacklisted) {
-            // Generate and send roast
-            const content = await generateContextualContent(tab.title);
-            if (content) {
-                chrome.tabs.sendMessage(tabId, { action: "UPDATE_CONTENT", data: content }).catch(() => { });
+        if (isBlacklisted && contextKey) {
+            const cacheEntry = getCacheEntry(contextKey);
+
+            if (canCallOpenAI(contextKey)) {
+                const typeToRefresh = chooseNextType(cacheEntry);
+                const generated = await generateContextualContent(tab.title, tab.url, typeToRefresh);
+                lastApiCallTime = Date.now();
+                lastApiContextKey = contextKey;
+                if (generated) {
+                    applySnippetToCache(cacheEntry, generated);
+                }
             } else {
-                // Fallback roast if API fails
-                console.error("❌ AI Roast Failed for:", tab.title, "- Switching to fallback.");
-                const roast = MOCK_ROASTS[Math.floor(Math.random() * MOCK_ROASTS.length)].replace("[Title]", tab.title);
+                console.warn("Rate limit hit for context:", contextKey, "- relying on cache.");
+            }
+
+            const payload = buildPayload(cacheEntry, tab.title);
+            if (payload) {
+                chrome.tabs.sendMessage(tabId, { action: "UPDATE_CONTENT", data: payload }).catch(() => { });
+            } else {
+                const roast = getFallbackRoast(tab.title);
                 chrome.tabs.sendMessage(tabId, { action: "ROAST", text: roast }).catch(() => { });
             }
         }
@@ -191,9 +456,29 @@ async function ensureOffscreen() {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message && message.action === "PLAY_SOUND") {
+    if (!message || !message.action) return;
+
+    if (message.action === "PLAY_SOUND") {
         ensureOffscreen().then(() => {
             chrome.runtime.sendMessage({ action: "OFFSCREEN_PLAY", file: message.file });
         }).catch(() => { });
+        return;
+    }
+
+    if (message.action === "GENERATE_STUDY_QUIZ") {
+        (async () => {
+            try {
+                const payload = message.payload || {};
+                const questions = await generateStudyQuizQuestions(payload.file, payload.textPreview, payload.imageDataUrl);
+                sendResponse({
+                    ok: true,
+                    quizId: crypto.randomUUID ? crypto.randomUUID() : `quiz-${Date.now()}`,
+                    questions
+                });
+            } catch (error) {
+                sendResponse({ ok: false, error: error.message || "Quiz generation failed." });
+            }
+        })();
+        return true;
     }
 });
