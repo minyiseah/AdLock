@@ -31,14 +31,10 @@ let lastRedirectTime = Date.now();
 let chaosTimeouts = [];
 let chaosInterval = null;
 const AUDIO_FILES = [
-  "audio/alert.mp3",
-  "audio/notification_sound.mp3",
   "audio/slack_notification.mp3",
   "audio/teams_notification.mp3",
   "audio/telegram_notification.mp3",
-  "audio/twitter_notification.mp3",
-  "audio/vk_notification.mp3",
-  "audio/whatsapp.mp3"
+  "audio/twitter_notification.mp3"
 ];
 
 // Helper to get a random integer
@@ -359,7 +355,7 @@ function startChaos(intensity, sessionEnd) {
   if (intensity >= 4) {
     const audioLoop = () => {
       if (document.hidden) { chaosTimeouts.push(setTimeout(audioLoop, 1000)); return; }
-      const delay = getRandomInt(1500, 5000); // More frequent intervals
+      const delay = getRandomInt(4000, 9000); // Slightly less frequent intervals
       chaosTimeouts.push(setTimeout(() => {
         if (!document.hidden) playAnnoyingSound();
         audioLoop();
