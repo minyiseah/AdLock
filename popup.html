@@ -405,6 +405,122 @@
       color: #333;
     }
 
+    /* Study quiz overlay */
+    .study-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9998;
+    }
+
+    .study-modal {
+      width: 90%;
+      max-width: 360px;
+      max-height: 90vh;
+      background: #fff;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-family: inherit;
+      overflow-y: auto;
+    }
+
+    .study-modal h3 {
+      margin: 0;
+      color: #1b5e20;
+    }
+
+    .study-note {
+      font-size: 12px;
+      color: #4e4e4e;
+      line-height: 1.4;
+    }
+
+    .study-file-info {
+      font-size: 12px;
+      color: #2e7d32;
+      margin-top: 6px;
+    }
+
+    .study-question {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+    }
+
+    .study-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .study-option {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      text-align: left;
+      background: #fafafa;
+    }
+
+    .study-option.selected {
+      border-color: var(--brand-primary);
+      background: #e8f5e9;
+    }
+
+    .study-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+    }
+
+    .study-actions button {
+      min-height: 38px;
+      flex: 1;
+    }
+
+    .study-quiz-section .study-actions {
+      position: sticky;
+      bottom: 0;
+      background: #fff;
+      padding-top: 6px;
+    }
+
+    .study-error {
+      color: #c62828;
+      font-size: 12px;
+      min-height: 16px;
+    }
+
+    .study-quiz-section {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .study-question-text {
+      background: #f5f7f5;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: #333;
+      min-height: 60px;
+    }
+
     .promo-banner {
       background-color: #e3f2fd;
       color: #0d47a1;
@@ -568,6 +684,39 @@
       <div class="captcha-footer">
         <button id="captchaCancel">Keep Focus</button>
         <button id="captchaVerify">Verify</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="studyOverlay" class="study-overlay">
+    <div class="study-modal">
+      <div id="studyUploadSection">
+        <h3>Upload Study Proof</h3>
+        <p class="study-note">
+          Share the material you just studied (PDF or image, up to 25&nbsp;MB). We'll auto-generate a quiz about it.
+        </p>
+        <div>
+          <label for="studyFile">Study file</label>
+          <input id="studyFile" type="file" accept=".pdf,image/*" style="width:100%; margin-top:6px;" />
+          <div id="studyFileInfo" class="study-file-info">No file selected.</div>
+        </div>
+        <div id="studyError" class="study-error"></div>
+        <div class="study-actions">
+          <button id="studyCancel" class="secondary" style="flex:1;">Keep Working</button>
+          <button id="studySubmit" style="flex:1;">Generate Quiz</button>
+        </div>
+      </div>
+
+      <div id="studyQuizSection" class="study-quiz-section">
+        <h3>Answer The Quiz</h3>
+        <p class="study-note">Get all three questions correct to end your focus timer.</p>
+        <div id="studyQuizProgress" class="study-file-info"></div>
+      <div id="studyQuizQuestion" class="study-question-text"></div>
+        <div id="studyQuizOptions" class="study-options"></div>
+        <div id="studyQuizFeedback" class="study-error"></div>
+        <div class="study-actions">
+          <button id="studyQuizSubmit" style="flex:1;">Submit Answer</button>
+        </div>
       </div>
     </div>
   </div>

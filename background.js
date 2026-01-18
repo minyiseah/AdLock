@@ -266,25 +266,25 @@ async function generateStudyQuizQuestions(fileMeta, textPreview, imageDataUrl) {
 
     const userContent = [
         {
-            type: "input_text",
-            text: `Use the study material below to craft exactly three short-answer quiz questions with their correct answers. Each question must reference specific facts from the material instead of trivia.`
+            type: "text",
+            text: `Use the study material below to craft exactly three multiple-choice quiz questions (A-D options) with their correct answers and concise explanations. Each question must reference specific facts from the material instead of trivia.`
         },
         {
-            type: "input_text",
+            type: "text",
             text: `File details:\n- Name: ${fileMeta.name || 'unknown'}\n- Type: ${fileMeta.type || 'unknown'}\n- Size bytes: ${fileMeta.size || 0}`
         }
     ];
 
     if (cleanedText) {
         userContent.push({
-            type: "input_text",
+            type: "text",
             text: `Study excerpt:\n${cleanedText}`
         });
     }
 
     if (imageDataUrl && imageDataUrl.startsWith("data:")) {
         userContent.push({
-            type: "input_image",
+            type: "image_url",
             image_url: { url: imageDataUrl }
         });
     }
@@ -319,9 +319,20 @@ async function generateStudyQuizQuestions(fileMeta, textPreview, imageDataUrl) {
                                             additionalProperties: false,
                                             properties: {
                                                 question: { type: "string" },
-                                                answer: { type: "string" }
+                                                options: {
+                                                    type: "array",
+                                                    minItems: 4,
+                                                    maxItems: 4,
+                                                    items: { type: "string" }
+                                                },
+                                                correctIndex: {
+                                                    type: "integer",
+                                                    minimum: 0,
+                                                    maximum: 3
+                                                },
+                                                explanation: { type: "string" }
                                             },
-                                            required: ["question", "answer"]
+                                            required: ["question", "options", "correctIndex"]
                                         }
                                     }
                                 },
@@ -361,7 +372,12 @@ async function generateStudyQuizQuestions(fileMeta, textPreview, imageDataUrl) {
             if (!parsed.questions || !Array.isArray(parsed.questions)) {
                 throw new Error("Invalid quiz payload from OpenAI.");
             }
-            return parsed.questions.slice(0, 3);
+            return parsed.questions.slice(0, 3).map(q => ({
+                question: q.question,
+                options: q.options,
+                correctIndex: typeof q.correctIndex === "number" ? q.correctIndex : 0,
+                explanation: q.explanation || ""
+            }));
         }
         throw new Error("OpenAI response missing quiz content.");
     } catch (error) {
@@ -475,7 +491,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     quizId: crypto.randomUUID ? crypto.randomUUID() : `quiz-${Date.now()}`,
                     questions
                 });
-            } catch (error) {
+			} catch (error) {
                 sendResponse({ ok: false, error: error.message || "Quiz generation failed." });
             }
         })();

@@ -38,6 +38,20 @@ const captchaError = document.getElementById('captchaError');
 const captchaVerify = document.getElementById('captchaVerify');
 const captchaCancel = document.getElementById('captchaCancel');
 
+const studyOverlay = document.getElementById('studyOverlay');
+const studyUploadSection = document.getElementById('studyUploadSection');
+const studyQuizSection = document.getElementById('studyQuizSection');
+const studyFileInput = document.getElementById('studyFile');
+const studyFileInfo = document.getElementById('studyFileInfo');
+const studyError = document.getElementById('studyError');
+const studySubmit = document.getElementById('studySubmit');
+const studyCancel = document.getElementById('studyCancel');
+const studyQuizProgress = document.getElementById('studyQuizProgress');
+const studyQuizQuestion = document.getElementById('studyQuizQuestion');
+const studyQuizOptions = document.getElementById('studyQuizOptions');
+const studyQuizFeedback = document.getElementById('studyQuizFeedback');
+const studyQuizSubmit = document.getElementById('studyQuizSubmit');
+
 const focusToggle = document.getElementById('focusToggle');
 const toggleThumb = document.getElementById('toggleThumb');
 const toggleLabel = document.getElementById('toggleLabel');
@@ -50,6 +64,15 @@ let timerInterval;
 let captchaStep = 1;
 let currentCaptchaAnswer = '';
 let currentViewDate = new Date();
+
+const MAX_STUDY_FILE_SIZE = 25 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 1024;
+const MAX_TEXT_PREVIEW_CHARS = 6000;
+
+let studyUploadState = { file: null, fileMeta: null };
+let studyQuizState = null;
+let studySelectedOption = null;
+const STUDY_SUBMIT_DEFAULT_TEXT = 'Generate Quiz';
 
 function renderList(blacklist) {
   siteList.innerHTML = '';
@@ -355,6 +378,295 @@ function stopSession() {
   });
 }
 
+function formatBytes(bytes) {
+  if (!bytes && bytes !== 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let idx = 0;
+  let value = bytes;
+  while (value >= 1024 && idx < units.length - 1) {
+    value /= 1024;
+    idx++;
+  }
+  return `${value.toFixed(value >= 10 || idx === 0 ? 0 : 1)} ${units[idx]}`;
+}
+
+function resetStudyUploadForm(message = '') {
+  studyUploadState = { file: null, fileMeta: null };
+  if (studyFileInput) studyFileInput.value = '';
+  if (studyFileInfo) studyFileInfo.textContent = 'No file selected.';
+  if (studyError) studyError.textContent = message;
+  if (studySubmit) {
+    studySubmit.disabled = false;
+    studySubmit.textContent = STUDY_SUBMIT_DEFAULT_TEXT;
+  }
+}
+
+function setStudyMode(mode) {
+  if (!studyUploadSection || !studyQuizSection) return;
+  if (mode === 'quiz') {
+    studyUploadSection.style.display = 'none';
+    studyQuizSection.style.display = 'flex';
+  } else {
+    studyQuizSection.style.display = 'none';
+    studyUploadSection.style.display = 'block';
+    studyQuizState = null;
+  if (studyQuizQuestion) studyQuizQuestion.textContent = '';
+  if (studyQuizProgress) studyQuizProgress.textContent = '';
+  if (studyQuizFeedback) studyQuizFeedback.textContent = '';
+  if (studyQuizOptions) studyQuizOptions.innerHTML = '';
+  studySelectedOption = null;
+  }
+}
+
+function showStudyUploadOverlay() {
+  resetStudyUploadForm('');
+  setStudyMode('upload');
+  if (studyOverlay) studyOverlay.style.display = 'flex';
+}
+
+function hideStudyUploadOverlay() {
+  if (studyOverlay) studyOverlay.style.display = 'none';
+}
+
+function handleStudyFileChange() {
+  if (!studyFileInput || !studyError) return;
+  studyError.textContent = '';
+  const file = studyFileInput.files[0];
+  if (!file) {
+    resetStudyUploadForm('');
+    return;
+  }
+
+  if (!(file.type === 'application/pdf' || file.type.startsWith('image/'))) {
+    resetStudyUploadForm('Only PDF or image files are allowed.');
+    return;
+  }
+
+  if (file.size > MAX_STUDY_FILE_SIZE) {
+    resetStudyUploadForm('File exceeds 25MB. Choose a smaller file.');
+    return;
+  }
+
+  studyUploadState = {
+    file,
+    fileMeta: {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    }
+  };
+  if (studyFileInfo) studyFileInfo.textContent = `${file.name} (${formatBytes(file.size)})`;
+}
+
+function sanitizePreviewText(text) {
+  if (!text) return '';
+  return text.replace(/[^\x09\x0A\x0D\x20-\x7E]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_TEXT_PREVIEW_CHARS);
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Could not load that image. Try a different file.'));
+    img.src = dataUrl;
+  });
+}
+
+async function downscaleImageToDataUrl(file) {
+  const dataUrl = await readFileAsDataURL(file);
+  const img = await loadImageFromDataUrl(dataUrl);
+  const largestSide = Math.max(img.width, img.height);
+  const scale = largestSide > MAX_IMAGE_DIMENSION ? MAX_IMAGE_DIMENSION / largestSide : 1;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(img.width * scale));
+  canvas.height = Math.max(1, Math.round(img.height * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.82);
+}
+
+async function extractTextPreviewFromPdf(file) {
+  const buffer = await readFileAsArrayBuffer(file);
+  const limited = buffer.byteLength > 4 * 1024 * 1024 ? buffer.slice(0, 4 * 1024 * 1024) : buffer;
+  const decoder = new TextDecoder('utf-8', { fatal: false });
+  const raw = decoder.decode(limited);
+  return sanitizePreviewText(raw);
+}
+
+async function prepareStudyPayload(file) {
+  if (file.type.startsWith('image/')) {
+    const imageDataUrl = await downscaleImageToDataUrl(file);
+    return { imageDataUrl };
+  }
+  if (file.type === 'application/pdf') {
+    const textPreview = await extractTextPreviewFromPdf(file);
+    if (!textPreview) throw new Error('Could not read that PDF. Try exporting a page as an image.');
+    return { textPreview };
+  }
+  if (file.type.startsWith('text/')) {
+    const buffer = await readFileAsArrayBuffer(file);
+    const limited = buffer.byteLength > 4 * 1024 * 1024 ? buffer.slice(0, 4 * 1024 * 1024) : buffer;
+    const preview = sanitizePreviewText(new TextDecoder('utf-8', { fatal: false }).decode(limited));
+    if (!preview) throw new Error('Text file appears empty.');
+    return { textPreview: preview };
+  }
+  throw new Error('Unsupported file type. Upload a PDF or image.');
+}
+
+function saveStudySubmission(entry, callback) {
+  chrome.storage.local.get(['studySubmissions'], (result) => {
+    const submissions = result.studySubmissions || [];
+    submissions.push(entry);
+    const trimmed = submissions.slice(-10);
+    chrome.storage.local.set({ studySubmissions: trimmed }, callback);
+  });
+}
+
+async function handleStudySubmit() {
+  if (!studyUploadState.fileMeta || !studyUploadState.file) {
+    studyError.textContent = 'Upload a PDF or image first.';
+    return;
+  }
+
+  studySubmit.disabled = true;
+  studySubmit.textContent = 'Generating...';
+
+  try {
+    const prepared = await prepareStudyPayload(studyUploadState.file);
+    chrome.runtime.sendMessage({
+      action: "GENERATE_STUDY_QUIZ",
+      payload: {
+        file: studyUploadState.fileMeta,
+        textPreview: prepared.textPreview || null,
+        imageDataUrl: prepared.imageDataUrl || null
+      }
+    }, (response) => {
+      studySubmit.disabled = false;
+      studySubmit.textContent = STUDY_SUBMIT_DEFAULT_TEXT;
+
+      if (chrome.runtime.lastError) {
+        studyError.textContent = chrome.runtime.lastError.message || 'Failed to reach background script.';
+        return;
+      }
+      if (!response || !response.ok) {
+        studyError.textContent = (response && response.error) ? response.error : 'Quiz generation failed. Try again.';
+        return;
+      }
+      startStudyQuiz(response.quizId || `quiz-${Date.now()}`, response.questions);
+    });
+  } catch (error) {
+    studySubmit.disabled = false;
+    studySubmit.textContent = STUDY_SUBMIT_DEFAULT_TEXT;
+    studyError.textContent = error.message || 'Unable to process that file.';
+  }
+}
+
+function startStudyQuiz(quizId, questions) {
+  if (!questions || questions.length === 0) {
+    studyError.textContent = 'Quiz generation returned no questions. Try another file.';
+    return;
+  }
+
+  studyQuizState = {
+    id: quizId,
+    questions: questions.slice(0, 3),
+    index: 0
+  };
+  if (studyQuizFeedback) studyQuizFeedback.textContent = '';
+  if (studyQuizOptions) studyQuizOptions.innerHTML = '';
+  studySelectedOption = null;
+  setStudyMode('quiz');
+  showCurrentQuizQuestion();
+}
+
+function showCurrentQuizQuestion() {
+  if (!studyQuizState) return;
+  const { index, questions } = studyQuizState;
+  const current = questions[index];
+  if (studyQuizProgress) studyQuizProgress.textContent = `Question ${index + 1} of ${questions.length}`;
+  if (studyQuizQuestion) studyQuizQuestion.textContent = current.question;
+  if (studyQuizOptions) {
+    studyQuizOptions.innerHTML = '';
+    studySelectedOption = null;
+    (current.options || []).forEach((opt, optIndex) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'study-option';
+      const cleaned = (opt || '').trim().replace(/^[A-Za-z][\)\.\:\-]\s*/, '').trim();
+      btn.textContent = String.fromCharCode(65 + optIndex) + '. ' + cleaned;
+      btn.addEventListener('click', () => {
+        studySelectedOption = optIndex;
+        Array.from(studyQuizOptions.children).forEach(el => el.classList.remove('selected'));
+        btn.classList.add('selected');
+      });
+      studyQuizOptions.appendChild(btn);
+    });
+  }
+  if (studyQuizFeedback) studyQuizFeedback.textContent = '';
+}
+
+function restartStudyWorkflow() {
+  resetStudyUploadForm('Incorrect answer. Upload your study material again.');
+  setStudyMode('upload');
+}
+
+function completeStudyQuiz() {
+  const quizCopy = studyQuizState ? [...studyQuizState.questions] : [];
+  const metaCopy = studyUploadState.fileMeta ? { ...studyUploadState.fileMeta } : null;
+  studyUploadState = { file: null, fileMeta: null };
+  hideStudyUploadOverlay();
+  saveStudySubmission({
+    id: crypto.randomUUID ? crypto.randomUUID() : `quiz-${Date.now()}`,
+    createdAt: Date.now(),
+    file: metaCopy,
+    quiz: quizCopy
+  }, () => {
+    stopSession();
+  });
+}
+
+function handleStudyQuizSubmit() {
+  if (!studyQuizState) return;
+  if (studySelectedOption === null || studySelectedOption === undefined) {
+    studyQuizFeedback.textContent = 'Select an option before submitting.';
+    return;
+  }
+
+  const current = studyQuizState.questions[studyQuizState.index];
+  if (studySelectedOption !== current.correctIndex) {
+    studyQuizFeedback.textContent = 'Incorrect answer. Restarting...';
+    setTimeout(() => {
+      restartStudyWorkflow();
+    }, 1200);
+    return;
+  }
+
+  studyQuizState.index += 1;
+  if (studyQuizState.index >= studyQuizState.questions.length) {
+    completeStudyQuiz();
+  } else {
+    showCurrentQuizQuestion();
+  }
+}
+
 function checkSessionStatus() {
   chrome.storage.sync.get(['sessionActive', 'sessionEnd', 'sessionStart'], (syncResult) => {
     if (syncResult.sessionActive && syncResult.sessionEnd < Date.now()) {
@@ -562,7 +874,7 @@ function advanceCaptcha() {
     renderCaptchaStep();
   } else {
     captchaOverlay.style.display = 'none';
-    stopSession();
+    showStudyUploadOverlay();
   }
 }
 
@@ -606,6 +918,21 @@ nextMonthBtn.addEventListener('click', () => {
 
 captchaVerify.addEventListener('click', verifyCaptcha);
 captchaCancel.addEventListener('click', () => { captchaOverlay.style.display = 'none'; });
+
+if (studyFileInput) {
+  studyFileInput.addEventListener('change', handleStudyFileChange);
+}
+if (studySubmit) {
+  studySubmit.addEventListener('click', handleStudySubmit);
+}
+if (studyCancel) {
+  studyCancel.addEventListener('click', () => {
+    hideStudyUploadOverlay();
+  });
+}
+if (studyQuizSubmit) {
+  studyQuizSubmit.addEventListener('click', handleStudyQuizSubmit);
+}
 
 if (closePromo) {
   closePromo.addEventListener('click', () => { upgradePromo.style.display = 'none'; });
