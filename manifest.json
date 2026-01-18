@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Ad-On",
+  "name": "AdLock",
   "version": "1.0",
   "description": "Discourages browsing distracting sites by injecting 90s-style popups and fake ads.",
   "permissions": [
