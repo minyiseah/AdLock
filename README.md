@@ -1,4 +1,4 @@
-# Ad-On 🚫
+# AdLock 🚫
 Ads on, distractions gone.
 
 Goal: Solving productivity issues via punishment. Instead of of blocking ads, it punishes you for visiting distracting sites by flooding your screen with 90s-style popups, slippery buttons, glitches, and AI-generated roasts.
