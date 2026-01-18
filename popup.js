@@ -26,25 +26,30 @@ const currentMonthLabel = document.getElementById('currentMonthLabel');
 const sessionDetails = document.getElementById('sessionDetails');
 const selectedDateLabel = document.getElementById('selectedDateLabel');
 const sessionListEl = document.getElementById('sessionList');
-const blacklistMessage = document.getElementById('blacklistMessage');
+
+const upgradePromo = document.getElementById('upgradePromo');
+const closePromo = document.getElementById('closePromo');
+
+const captchaOverlay = document.getElementById('captchaOverlay');
+const captchaTitle = document.getElementById('captchaTitle');
+const captchaProgress = document.getElementById('captchaProgress');
+const captchaBody = document.getElementById('captchaBody');
+const captchaError = document.getElementById('captchaError');
+const captchaVerify = document.getElementById('captchaVerify');
+const captchaCancel = document.getElementById('captchaCancel');
 
 const focusToggle = document.getElementById('focusToggle');
 const toggleThumb = document.getElementById('toggleThumb');
 const toggleLabel = document.getElementById('toggleLabel');
 const durationInput = document.getElementById('duration');
 const timerDisplay = document.getElementById('timerDisplay');
-const captchaOverlay = document.getElementById('captchaOverlay');
-const captchaTitle = document.getElementById('captchaTitle');
-const captchaProgress = document.getElementById('captchaProgress');
-const captchaBody = document.getElementById('captchaBody');
-const captchaError = document.getElementById('captchaError');
-const captchaCancel = document.getElementById('captchaCancel');
-const captchaVerify = document.getElementById('captchaVerify');
+const protectionStatusEl = document.querySelector('.stats-grid .stat-card:nth-child(2) .stat-number');
+const timerLabelEl = document.querySelector('.stats-grid .stat-card:nth-child(1) .stat-text');
 
 let timerInterval;
+let captchaStep = 1;
+let currentCaptchaAnswer = '';
 let currentViewDate = new Date();
-const CAPTCHA_TOTAL = 5;
-let captchaState = { active: false, step: 0, order: [], validate: null };
 
 function renderList(blacklist) {
   siteList.innerHTML = '';
@@ -193,7 +198,7 @@ function showSessionDetails(dateKey, entry) {
     return;
   }
 
-  entry.sessions.forEach(session => {
+  [...entry.sessions].reverse().forEach(session => {
     const li = document.createElement('li');
     const start = new Date(session.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const duration = Math.floor(session.duration / 60000);
@@ -218,8 +223,6 @@ function addSite() {
   const site = newSiteInput.value.trim();
   if (!site) return;
 
-  if (blacklistMessage) blacklistMessage.textContent = '';
-
   chrome.storage.sync.get(['blacklist'], (result) => {
     const blacklist = result.blacklist || DEFAULT_BLACKLIST;
     blacklist.push(site);
@@ -231,21 +234,10 @@ function addSite() {
 }
 
 function removeSite(index) {
-  chrome.storage.sync.get(['blacklist', 'sessionActive', 'sessionEnd'], (result) => {
-    const isSessionActive = result.sessionActive && result.sessionEnd > Date.now();
-    
-    if (isSessionActive) {
-      if (blacklistMessage) {
-        blacklistMessage.textContent = "Cannot remove sites while a focus session is active.";
-        setTimeout(() => { if (blacklistMessage) blacklistMessage.textContent = ''; }, 3000);
-      }
-    } else {
-      const blacklist = result.blacklist || DEFAULT_BLACKLIST;
-      blacklist.splice(index, 1);
-      chrome.storage.sync.set({ blacklist }, () => {
-        renderList(blacklist);
-      });
-    }
+  chrome.storage.sync.get(['blacklist'], (result) => {
+    const blacklist = result.blacklist || DEFAULT_BLACKLIST;
+    blacklist.splice(index, 1);
+    chrome.storage.sync.set({ blacklist }, () => renderList(blacklist));
   });
 }
 
@@ -253,6 +245,9 @@ function updateTimerUI(isActive, endTime, startTime) {
   if (isActive && endTime > Date.now()) {
     focusToggle.classList.add('active');
     timerDisplay.style.display = 'block';
+    timerLabelEl.innerHTML = 'remaining<br>in session';
+    protectionStatusEl.textContent = 'Active';
+    protectionStatusEl.style.color = 'var(--brand-primary)';
     durationInput.disabled = true;
     toggleLabel.textContent = "Stop Focus";
 
@@ -289,7 +284,11 @@ function updateTimerUI(isActive, endTime, startTime) {
     focusToggle.classList.remove('active');
     toggleThumb.style.left = '5px'; // Reset to start
     toggleLabel.textContent = "Start Focus";
-    timerDisplay.style.display = 'none';
+    timerDisplay.style.display = 'block';
+    timerDisplay.textContent = '--';
+    timerLabelEl.innerHTML = 'Out-of-focus,<br>not in session';
+    protectionStatusEl.textContent = 'Slackin';
+    protectionStatusEl.style.color = '#888';
     durationInput.disabled = false;
     clearInterval(timerInterval);
   }
@@ -356,298 +355,6 @@ function stopSession() {
   });
 }
 
-function shuffle(array) {
-  const result = array.slice();
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-}
-
-function createCheckboxCaptcha() {
-  return {
-    title: "Are you human?",
-    render: (container) => {
-      const instructions = document.createElement('div');
-      instructions.className = 'captcha-instructions';
-      instructions.textContent = "Check the box to confirm you are human.";
-
-      const label = document.createElement('label');
-      label.style.display = 'flex';
-      label.style.alignItems = 'center';
-      label.style.gap = '8px';
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-
-      const text = document.createElement('span');
-      text.textContent = "I am human";
-
-      label.appendChild(checkbox);
-      label.appendChild(text);
-
-      container.appendChild(instructions);
-      container.appendChild(label);
-      return { checkbox };
-    },
-    validate: (ctx) => ctx.checkbox.checked
-  };
-}
-
-function createImageSelectCaptcha() {
-  const colors = ['red', 'blue', 'green', 'yellow'];
-  const shapes = ['square', 'circle'];
-  const targetColor = colors[Math.floor(Math.random() * colors.length)];
-  const targetShape = shapes[Math.floor(Math.random() * shapes.length)];
-
-  return {
-    title: "Select the images",
-    render: (container) => {
-      const instructions = document.createElement('div');
-      instructions.className = 'captcha-instructions';
-      instructions.textContent = `Select all ${targetColor} ${targetShape}s.`;
-
-      const grid = document.createElement('div');
-      grid.className = 'captcha-grid';
-
-      const tiles = [];
-      for (let i = 0; i < 9; i++) {
-        const tile = document.createElement('div');
-        tile.className = 'captcha-tile';
-
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        const shape = shapes[Math.floor(Math.random() * shapes.length)];
-        tile.dataset.color = color;
-        tile.dataset.shape = shape;
-
-        tile.style.background = color;
-        if (shape === 'circle') tile.classList.add('captcha-shape-circle');
-
-        tile.addEventListener('click', () => {
-          tile.classList.toggle('selected');
-        });
-
-        tiles.push(tile);
-        grid.appendChild(tile);
-      }
-
-      // Ensure at least two correct tiles
-      for (let i = 0; i < 2; i++) {
-        const tile = tiles[i];
-        tile.dataset.color = targetColor;
-        tile.dataset.shape = targetShape;
-        tile.style.background = targetColor;
-        tile.classList.toggle('captcha-shape-circle', targetShape === 'circle');
-      }
-
-      container.appendChild(instructions);
-      container.appendChild(grid);
-      return { tiles, targetColor, targetShape };
-    },
-    validate: (ctx) => {
-      let hasTarget = false;
-      for (const tile of ctx.tiles) {
-        const isTarget = tile.dataset.color === ctx.targetColor && tile.dataset.shape === ctx.targetShape;
-        const isSelected = tile.classList.contains('selected');
-        if (isTarget) hasTarget = true;
-        if (isTarget !== isSelected) return false;
-      }
-      return hasTarget;
-    }
-  };
-}
-
-function createPerspectiveCaptcha() {
-  const angles = [0, 90, 180, 270];
-  const targetAngle = angles[Math.floor(Math.random() * angles.length)];
-  const options = shuffle(angles).slice(0, 3);
-  if (!options.includes(targetAngle)) options[0] = targetAngle;
-  const finalOptions = shuffle(options);
-
-  return {
-    title: "Match the perspective",
-    render: (container) => {
-      const instructions = document.createElement('div');
-      instructions.className = 'captcha-instructions';
-      instructions.textContent = "Pick the option that matches the rotated image.";
-
-      const targetWrap = document.createElement('div');
-      targetWrap.style.marginBottom = '10px';
-      const targetShape = document.createElement('div');
-      targetShape.className = 'captcha-triangle';
-      targetShape.style.transform = `rotate(${targetAngle}deg)`;
-      targetWrap.appendChild(targetShape);
-
-      const optionsWrap = document.createElement('div');
-      optionsWrap.className = 'captcha-options';
-
-      let selected = null;
-      const optionButtons = finalOptions.map((angle) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'captcha-option';
-        btn.dataset.angle = angle.toString();
-
-        const shape = document.createElement('div');
-        shape.className = 'captcha-triangle small';
-        shape.style.transform = `rotate(${angle}deg)`;
-        btn.appendChild(shape);
-
-        btn.addEventListener('click', () => {
-          optionButtons.forEach(b => b.classList.remove('selected'));
-          btn.classList.add('selected');
-          selected = angle;
-        });
-
-        return btn;
-      });
-
-      optionButtons.forEach(btn => optionsWrap.appendChild(btn));
-
-      container.appendChild(instructions);
-      container.appendChild(targetWrap);
-      container.appendChild(optionsWrap);
-
-      return { getSelected: () => selected, targetAngle };
-    },
-    validate: (ctx) => ctx.getSelected() === ctx.targetAngle
-  };
-}
-
-function createTextCaptcha() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 5; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-
-  return {
-    title: "Type the characters",
-    render: (container) => {
-      const instructions = document.createElement('div');
-      instructions.className = 'captcha-instructions';
-      instructions.textContent = "Type the characters you see.";
-
-      const image = document.createElement('div');
-      image.className = 'captcha-text-image';
-      code.split('').forEach((ch) => {
-        const span = document.createElement('span');
-        span.textContent = ch;
-        span.style.transform = `rotate(${Math.floor(Math.random() * 21) - 10}deg)`;
-        image.appendChild(span);
-      });
-
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.placeholder = 'Enter code';
-      input.autocomplete = 'off';
-
-      container.appendChild(instructions);
-      container.appendChild(image);
-      container.appendChild(input);
-      return { input, code };
-    },
-    validate: (ctx) => ctx.input.value.trim().toUpperCase() === ctx.code
-  };
-}
-
-function createSliderCaptcha() {
-  const target = Math.floor(Math.random() * 61) + 20;
-
-  return {
-    title: "Align the slider",
-    render: (container) => {
-      const instructions = document.createElement('div');
-      instructions.className = 'captcha-instructions';
-      instructions.textContent = `Move the slider to ${target}.`;
-
-      const slider = document.createElement('input');
-      slider.type = 'range';
-      slider.min = '0';
-      slider.max = '100';
-      slider.value = '0';
-
-      const valueLabel = document.createElement('div');
-      valueLabel.className = 'captcha-slider-value';
-      valueLabel.textContent = "Current: 0";
-
-      slider.addEventListener('input', () => {
-        valueLabel.textContent = `Current: ${slider.value}`;
-      });
-
-      container.appendChild(instructions);
-      container.appendChild(slider);
-      container.appendChild(valueLabel);
-      return { slider, target };
-    },
-    validate: (ctx) => Math.abs(parseInt(ctx.slider.value, 10) - ctx.target) <= 2
-  };
-}
-
-function showCaptchaStep() {
-  const captcha = captchaState.order[captchaState.step];
-  captchaTitle.textContent = captcha.title;
-  captchaProgress.textContent = `Captcha ${captchaState.step + 1} of ${CAPTCHA_TOTAL}`;
-  captchaBody.innerHTML = '';
-  captchaError.textContent = '';
-
-  const ctx = captcha.render(captchaBody);
-  captchaState.validate = () => captcha.validate(ctx);
-}
-
-function endCaptchaChallenge(success) {
-  captchaOverlay.style.display = 'none';
-  captchaState.active = false;
-  captchaState.step = 0;
-  captchaState.order = [];
-  captchaState.validate = null;
-
-  if (success) stopSession();
-}
-
-function startCaptchaChallenge() {
-  if (captchaState.active) return;
-  captchaState.active = true;
-  captchaState.step = 0;
-  captchaState.order = shuffle([
-    createCheckboxCaptcha(),
-    createImageSelectCaptcha(),
-    createPerspectiveCaptcha(),
-    createTextCaptcha(),
-    createSliderCaptcha()
-  ]);
-
-  captchaOverlay.style.display = 'flex';
-  showCaptchaStep();
-}
-
-function addPenaltyTime() {
-  chrome.storage.sync.get(['sessionActive', 'sessionEnd', 'sessionStart'], (result) => {
-    if (!result.sessionActive || !result.sessionEnd) return;
-    const newEnd = result.sessionEnd + (5 * 60000);
-    chrome.storage.sync.set({ sessionEnd: newEnd }, () => {
-      updateTimerUI(true, newEnd, result.sessionStart || (newEnd - 30 * 60000));
-    });
-  });
-}
-
-captchaCancel.addEventListener('click', () => endCaptchaChallenge(false));
-captchaVerify.addEventListener('click', () => {
-  if (!captchaState.validate) return;
-  if (captchaState.validate()) {
-    captchaState.step += 1;
-    if (captchaState.step >= CAPTCHA_TOTAL) {
-      endCaptchaChallenge(true);
-      return;
-    }
-    showCaptchaStep();
-  } else {
-    captchaError.textContent = "Captcha failed, 5 minutes added! Try again.";
-    addPenaltyTime();
-  }
-});
-
 function checkSessionStatus() {
   chrome.storage.sync.get(['sessionActive', 'sessionEnd', 'sessionStart'], (syncResult) => {
     if (syncResult.sessionActive && syncResult.sessionEnd < Date.now()) {
@@ -680,28 +387,199 @@ function checkSessionStatus() {
   });
 }
 
+function showCaptcha() {
+  captchaStep = 1;
+  captchaOverlay.style.display = 'flex';
+  renderCaptchaStep();
+}
+
+function renderCaptchaStep() {
+  captchaProgress.textContent = `${captchaStep} of 5`;
+  captchaError.textContent = '';
+  captchaBody.innerHTML = '';
+
+  const captchaType = Math.floor(Math.random() * 3); // 0: Math, 1: Text, 2: Grid
+
+  if (captchaType === 2) {
+    renderGridCaptcha();
+    return;
+  }
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.style.width = '100%';
+  input.style.marginTop = '10px';
+  input.style.padding = '8px';
+  input.style.border = '1px solid #ccc';
+  input.style.borderRadius = '4px';
+
+  if (captchaType === 0) {
+    const a = Math.floor(Math.random() * 10) + 1;
+    const b = Math.floor(Math.random() * 10) + 1;
+    const label = document.createElement('div');
+    label.textContent = `Solve: ${a} + ${b}`;
+    label.style.fontSize = '16px';
+    label.style.fontWeight = 'bold';
+    label.style.textAlign = 'center';
+
+    currentCaptchaAnswer = (a + b).toString();
+    captchaBody.appendChild(label);
+  } else {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let str = '';
+    const fonts = ['Arial', 'Verdana', 'Courier New', 'Georgia', 'Times New Roman', 'Comic Sans MS'];
+
+    const container = document.createElement('div');
+    container.style.textAlign = 'center';
+    container.style.background = '#eee';
+    container.style.padding = '5px';
+    container.style.marginBottom = '5px';
+
+    for (let i = 0; i < 5; i++) {
+      const char = chars.charAt(Math.floor(Math.random() * chars.length));
+      str += char;
+      const span = document.createElement('span');
+      span.textContent = char;
+      span.style.fontFamily = fonts[Math.floor(Math.random() * fonts.length)];
+      span.style.fontSize = (16 + Math.floor(Math.random() * 12)) + 'px';
+      span.style.margin = '0 2px';
+      container.appendChild(span);
+    }
+
+    const label = document.createElement('div');
+    label.textContent = "Type characters:";
+    label.style.textAlign = 'center';
+
+    currentCaptchaAnswer = str;
+    captchaBody.appendChild(label);
+    captchaBody.appendChild(container);
+  }
+
+  captchaBody.appendChild(input);
+  input.focus();
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') verifyCaptcha();
+  });
+}
+
+function renderGridCaptcha() {
+  const emojis = ['🍎', '🍌', '🍒', '🍇', '🍉', '🚗', '✈️', '🚀', '🐶', '🐱'];
+  const target = emojis[Math.floor(Math.random() * emojis.length)];
+  const distractors = emojis.filter(e => e !== target);
+
+  const label = document.createElement('div');
+  label.innerHTML = `Select all: <span style="font-size:18px; font-weight:bold;">${target}</span>`;
+  label.style.textAlign = 'center';
+  label.style.marginBottom = '10px';
+  captchaBody.appendChild(label);
+
+  const grid = document.createElement('div');
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+  grid.style.gap = '5px';
+
+  let correctIndices = [];
+  for (let i = 0; i < 9; i++) {
+    if (Math.random() > 0.6) correctIndices.push(i);
+  }
+  if (correctIndices.length === 0) correctIndices.push(Math.floor(Math.random() * 9));
+
+  currentCaptchaAnswer = correctIndices;
+
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('div');
+    cell.style.height = '40px';
+    cell.style.background = '#f9f9f9';
+    cell.style.border = '1px solid #ddd';
+    cell.style.borderRadius = '4px';
+    cell.style.display = 'flex';
+    cell.style.alignItems = 'center';
+    cell.style.justifyContent = 'center';
+    cell.style.fontSize = '20px';
+    cell.style.cursor = 'pointer';
+    cell.dataset.idx = i;
+
+    if (correctIndices.includes(i)) {
+      cell.textContent = target;
+    } else {
+      cell.textContent = distractors[Math.floor(Math.random() * distractors.length)];
+    }
+
+    cell.onclick = () => {
+      cell.classList.toggle('selected');
+      if (cell.classList.contains('selected')) {
+        cell.style.background = '#e8f5e9';
+        cell.style.borderColor = 'var(--brand-primary)';
+      } else {
+        cell.style.background = '#f9f9f9';
+        cell.style.borderColor = '#ddd';
+      }
+    };
+    grid.appendChild(cell);
+  }
+  captchaBody.appendChild(grid);
+}
+
+function verifyCaptcha() {
+  const grid = captchaBody.querySelector('div[style*="display: grid"]');
+  if (grid) {
+    const selected = Array.from(grid.children)
+      .filter(el => el.classList.contains('selected'))
+      .map(el => parseInt(el.dataset.idx))
+      .sort((a, b) => a - b);
+    const correct = currentCaptchaAnswer.sort((a, b) => a - b);
+
+    if (JSON.stringify(selected) === JSON.stringify(correct)) {
+      advanceCaptcha();
+    } else {
+      captchaError.textContent = "Incorrect selection.";
+      Array.from(grid.children).forEach(el => {
+        el.classList.remove('selected');
+        el.style.background = '#f9f9f9';
+        el.style.borderColor = '#ddd';
+      });
+    }
+    return;
+  }
+
+  const input = captchaBody.querySelector('input');
+  if (!input) return;
+
+  const val = input.value.trim().toUpperCase();
+  if (val === currentCaptchaAnswer.toString().toUpperCase()) {
+    advanceCaptcha();
+  } else {
+    captchaError.textContent = "Incorrect! Focus harder.";
+    input.value = '';
+    input.focus();
+  }
+}
+
+function advanceCaptcha() {
+  if (captchaStep < 5) {
+    captchaStep++;
+    renderCaptchaStep();
+  } else {
+    captchaOverlay.style.display = 'none';
+    stopSession();
+  }
+}
+
 addBtn.addEventListener('click', addSite);
 
 focusToggle.addEventListener('click', () => {
   chrome.storage.sync.get(['sessionActive'], (result) => {
     if (result.sessionActive) {
-      startCaptchaChallenge();
+      showCaptcha();
     } else {
       startSession();
     }
   });
 });
 
-blacklistBtn.addEventListener('click', () => {
-  mainMenu.style.display = 'none';
-  blacklistMenu.style.display = 'block';
-  loadSites(); // Reload sites to get correct button states
-});
-backBtn.addEventListener('click', () => {
-  blacklistMenu.style.display = 'none';
-  mainMenu.style.display = 'block';
-  if (blacklistMessage) blacklistMessage.textContent = ''; // Clear message on back
-});
+blacklistBtn.addEventListener('click', () => { mainMenu.style.display = 'none'; blacklistMenu.style.display = 'block'; });
+backBtn.addEventListener('click', () => { blacklistMenu.style.display = 'none'; mainMenu.style.display = 'block'; });
 historyBtn.addEventListener('click', () => {
   mainMenu.style.display = 'none';
   historyMenu.style.display = 'block';
@@ -725,6 +603,13 @@ nextMonthBtn.addEventListener('click', () => {
     renderDashboard(result.dailyHistory || {});
   });
 });
+
+captchaVerify.addEventListener('click', verifyCaptcha);
+captchaCancel.addEventListener('click', () => { captchaOverlay.style.display = 'none'; });
+
+if (closePromo) {
+  closePromo.addEventListener('click', () => { upgradePromo.style.display = 'none'; });
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   loadSites();
